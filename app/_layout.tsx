@@ -61,6 +61,7 @@ function RootLayoutNav() {
         <Stack.Screen name="modal" options={{ presentation: 'modal' }} />
         <Stack.Screen name="template/index" options={{ title: 'テンプレート管理' }} />
         <Stack.Screen name="template/[id]" options={{ title: 'テンプレート' }} />
+        <Stack.Screen name="history/[id]" options={{ title: '履歴詳細' }} />
       </Stack>
     </ThemeProvider>
   );

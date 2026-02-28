@@ -13,6 +13,7 @@ export interface TimerPreset {
 export interface Exercise {
   id: string;
   name: string;
+  category?: string;           // 例: '胸', '背中'（省略可、後付け互換）
   timerPresets: TimerPreset[]; // 最大3件
 }
 

@@ -2,7 +2,6 @@ import { useLocalSearchParams, useNavigation, useRouter } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import {
   Alert,
-  FlatList,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -16,6 +15,7 @@ import FontAwesome from '@expo/vector-icons/FontAwesome';
 
 import { generateId } from '@/src/lib/id';
 import { getSessions, getSettings, getTemplates, upsertSession } from '@/src/lib/storage';
+import ExercisePicker from '@/src/components/ExercisePicker';
 import type { AppSettings } from '@/src/lib/storage';
 import type { ExerciseEntry, SetEntry, WorkoutSession } from '@/src/types';
 
@@ -35,6 +35,14 @@ interface DraftExercise {
 
 // ─── Sub-components ──────────────────────────────────────
 
+function isValidDecimal(v: string) {
+  // 末尾の小数点（"60." など）も入力中の中間状態として許容
+  return v === '' || /^\d+\.?\d*$/.test(v);
+}
+function isValidInt(v: string) {
+  return v === '' || /^\d+$/.test(v);
+}
+
 function SetRow({
   index,
   set,
@@ -50,36 +58,50 @@ function SetRow({
   onChangeWeight: (val: string) => void;
   onRemove: () => void;
 }) {
+  const [weightTouched, setWeightTouched] = useState(false);
+  const [repsTouched, setRepsTouched] = useState(false);
+
+  const weightError = weightTouched && !isValidDecimal(set.weightKg);
+  const repsError = repsTouched && !isValidInt(set.reps);
+
   return (
-    <View style={rowStyles.container}>
-      <Text style={rowStyles.index}>{index + 1}</Text>
-      <TextInput
-        style={rowStyles.input}
-        value={set.reps}
-        onChangeText={onChangeReps}
-        keyboardType="numeric"
-        placeholder="回数"
-        returnKeyType="done"
-      />
-      <Text style={rowStyles.unit}>回</Text>
-      <TextInput
-        style={rowStyles.input}
-        value={set.weightKg}
-        onChangeText={onChangeWeight}
-        keyboardType="decimal-pad"
-        placeholder="重量"
-        returnKeyType="done"
-      />
-      <Text style={rowStyles.unit}>{unit}</Text>
-      <Pressable onPress={onRemove} hitSlop={12} style={{ marginLeft: 4 }}>
-        <FontAwesome name="times-circle" size={18} color="#bbb" />
-      </Pressable>
+    <View style={rowStyles.wrapper}>
+      <View style={rowStyles.container}>
+        <Text style={rowStyles.index}>{index + 1}</Text>
+        {/* 重量 → 回数 の順 */}
+        <TextInput
+          style={[rowStyles.input, weightError && rowStyles.inputError]}
+          value={set.weightKg}
+          onChangeText={onChangeWeight}
+          onBlur={() => setWeightTouched(true)}
+          keyboardType="decimal-pad"
+          placeholder="重量"
+          returnKeyType="next"
+        />
+        <Text style={rowStyles.unit}>{unit}</Text>
+        <TextInput
+          style={[rowStyles.input, repsError && rowStyles.inputError]}
+          value={set.reps}
+          onChangeText={onChangeReps}
+          onBlur={() => setRepsTouched(true)}
+          keyboardType="number-pad"
+          placeholder="回数"
+          returnKeyType="done"
+        />
+        <Text style={rowStyles.unit}>回</Text>
+        <Pressable onPress={onRemove} hitSlop={12} style={{ marginLeft: 4 }}>
+          <FontAwesome name="times-circle" size={18} color="#bbb" />
+        </Pressable>
+      </View>
+      {weightError && <Text style={rowStyles.errorText}>重量は数値で入力してください</Text>}
+      {repsError && <Text style={rowStyles.errorText}>回数は整数で入力してください</Text>}
     </View>
   );
 }
 
 const rowStyles = StyleSheet.create({
-  container: { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
+  wrapper: { marginBottom: 8 },
+  container: { flexDirection: 'row', alignItems: 'center' },
   index: { width: 20, fontSize: 13, color: '#aaa', textAlign: 'right', marginRight: 8 },
   input: {
     width: 64,
@@ -91,6 +113,11 @@ const rowStyles = StyleSheet.create({
     textAlign: 'center',
     backgroundColor: '#fafafa',
   },
+  inputError: {
+    borderColor: '#e53e3e',
+    backgroundColor: '#fff5f5',
+  },
+  errorText: { fontSize: 11, color: '#e53e3e', marginLeft: 28, marginTop: 2 },
   unit: { fontSize: 13, color: '#888', marginHorizontal: 4 },
 });
 
@@ -144,8 +171,8 @@ function ExerciseCard({
 
       <View style={cardStyles.setHeader}>
         <Text style={[cardStyles.colLabel, { width: 28 }]}>#</Text>
-        <Text style={[cardStyles.colLabel, { width: 64, textAlign: 'center' }]}>回数</Text>
-        <Text style={[cardStyles.colLabel, { width: 80, textAlign: 'center', marginLeft: 28 }]}>重量 ({unit})</Text>
+        <Text style={[cardStyles.colLabel, { width: 64, textAlign: 'center' }]}>重量 ({unit})</Text>
+        <Text style={[cardStyles.colLabel, { width: 80, textAlign: 'center', marginLeft: 28 }]}>回数</Text>
       </View>
 
       {exercise.sets.map((s, i) => (
@@ -217,8 +244,7 @@ export default function WorkoutsScreen() {
     timerSoundEnabled: true,
     timerVibrationEnabled: true,
   });
-  const [addingName, setAddingName] = useState('');
-  const [showAddInput, setShowAddInput] = useState(false);
+  const [pickerVisible, setPickerVisible] = useState(false);
   const startedAt = useRef(new Date().toISOString());
 
   useEffect(() => {
@@ -270,18 +296,22 @@ export default function WorkoutsScreen() {
     setExercises((prev) => prev.filter((_, i) => i !== idx));
   };
 
-  const addExercise = () => {
-    const name = addingName.trim();
-    if (!name) return;
+  const addExercise = (picked: { id: string; name: string }) => {
     setExercises((prev) => [
       ...prev,
-      { exerciseId: generateId(), exerciseName: name, sets: [{ id: generateId(), reps: '', weightKg: '' }] },
+      { exerciseId: picked.id, exerciseName: picked.name, sets: [{ id: generateId(), reps: '', weightKg: '' }] },
     ]);
-    setAddingName('');
-    setShowAddInput(false);
   };
 
   const handleFinish = async () => {
+    const hasError = exercises.some((e) =>
+      e.sets.some((s) => !isValidDecimal(s.weightKg) || !isValidInt(s.reps)),
+    );
+    if (hasError) {
+      Alert.alert('入力エラー', '正しい数値を入力してください');
+      return;
+    }
+
     const filledExercises = exercises.filter((e) => e.sets.some((s) => s.reps !== '' || s.weightKg !== ''));
     if (filledExercises.length === 0) {
       Alert.alert('確認', 'セットが記録されていません。終了しますか？', [
@@ -335,7 +365,7 @@ export default function WorkoutsScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       <ScrollView contentContainerStyle={styles.content}>
-        {exercises.length === 0 && !showAddInput && (
+        {exercises.length === 0 && (
           <View style={styles.emptyCard}>
             <Text style={styles.emptyText}>種目がありません</Text>
             <Text style={styles.emptyHint}>下の「種目を追加」から追加してください</Text>
@@ -352,39 +382,23 @@ export default function WorkoutsScreen() {
           />
         ))}
 
-        {/* 種目追加入力 */}
-        {showAddInput ? (
-          <View style={styles.addExCard}>
-            <TextInput
-              style={styles.addExInput}
-              value={addingName}
-              onChangeText={setAddingName}
-              placeholder="種目名を入力"
-              autoFocus
-              returnKeyType="done"
-              onSubmitEditing={addExercise}
-            />
-            <View style={styles.addExActions}>
-              <Pressable style={styles.addExConfirm} onPress={addExercise}>
-                <Text style={styles.addExConfirmText}>追加</Text>
-              </Pressable>
-              <Pressable onPress={() => { setShowAddInput(false); setAddingName(''); }}>
-                <Text style={styles.addExCancel}>キャンセル</Text>
-              </Pressable>
-            </View>
-          </View>
-        ) : (
-          <Pressable style={styles.addExBtn} onPress={() => setShowAddInput(true)}>
-            <FontAwesome name="plus" size={14} color="#2563eb" />
-            <Text style={styles.addExBtnText}>種目を追加</Text>
-          </Pressable>
-        )}
+        <Pressable style={styles.addExBtn} onPress={() => setPickerVisible(true)}>
+          <FontAwesome name="plus" size={14} color="#2563eb" />
+          <Text style={styles.addExBtnText}>種目を追加</Text>
+        </Pressable>
 
         {/* 完了ボタン */}
         <Pressable style={styles.finishBtn} onPress={handleFinish}>
           <Text style={styles.finishBtnText}>ワークアウトを完了</Text>
         </Pressable>
       </ScrollView>
+
+      <ExercisePicker
+        visible={pickerVisible}
+        alreadyAdded={exercises.map((e) => e.exerciseId)}
+        onSelect={addExercise}
+        onClose={() => setPickerVisible(false)}
+      />
     </KeyboardAvoidingView>
   );
 }
@@ -401,31 +415,6 @@ const styles = StyleSheet.create({
   },
   emptyText: { fontSize: 15, fontWeight: '600', color: '#555', marginBottom: 4 },
   emptyHint: { fontSize: 12, color: '#aaa', textAlign: 'center' },
-
-  addExCard: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 14,
-    marginBottom: 12,
-  },
-  addExInput: {
-    borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 8,
-    padding: 10,
-    fontSize: 15,
-    backgroundColor: '#fafafa',
-    marginBottom: 10,
-  },
-  addExActions: { flexDirection: 'row', alignItems: 'center', gap: 16 },
-  addExConfirm: {
-    backgroundColor: '#2563eb',
-    borderRadius: 8,
-    paddingHorizontal: 20,
-    paddingVertical: 8,
-  },
-  addExConfirmText: { color: '#fff', fontWeight: '700' },
-  addExCancel: { color: '#888', fontSize: 14 },
 
   addExBtn: {
     flexDirection: 'row',

@@ -7,6 +7,7 @@ import { useEffect } from 'react';
 import { Platform } from 'react-native';
 
 import { useColorScheme } from '@/components/useColorScheme';
+import { initSeedDataIfNeeded } from '@/src/lib/seed';
 
 export {
   ErrorBoundary,
@@ -30,6 +31,7 @@ export default function RootLayout() {
 
   useEffect(() => {
     if (loaded) {
+      initSeedDataIfNeeded(); // 初回起動のみ種目・テンプレートを投入
       SplashScreen.hideAsync();
     }
   }, [loaded]);

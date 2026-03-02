@@ -25,28 +25,23 @@ export default function TabLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Home',
+          title: 'ホーム',
+          headerShown: false,
           tabBarIcon: ({ color }) => <TabBarIcon name="home" color={color} />,
-        }}
-      />
-      <Tabs.Screen
-        name="workouts"
-        options={{
-          title: 'Workouts',
-          tabBarIcon: ({ color }) => <TabBarIcon name="heartbeat" color={color} />,
         }}
       />
       <Tabs.Screen
         name="history"
         options={{
-          title: 'History',
-          tabBarIcon: ({ color }) => <TabBarIcon name="list" color={color} />,
+          title: '履歴',
+          headerShown: false,
+          tabBarIcon: ({ color }) => <TabBarIcon name="bar-chart" color={color} />,
         }}
       />
       <Tabs.Screen
         name="settings"
         options={{
-          title: 'Settings',
+          title: '設定',
           tabBarIcon: ({ color }) => <TabBarIcon name="cog" color={color} />,
         }}
       />

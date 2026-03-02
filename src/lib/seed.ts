@@ -3,7 +3,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { saveExercises, saveTemplates } from './storage';
 import type { Exercise, WorkoutTemplate } from '@/src/types';
 
-const SEED_KEY = 'seeded_v1';
+const SEED_KEY = 'seeded_v2';
 
 // ─── 種目マスター ─────────────────────────────────────────
 
@@ -16,29 +16,35 @@ const E = (id: string, name: string, category: string): Exercise => ({
 
 const SEED_EXERCISES: Exercise[] = [
   // 胸
-  E('ex-chest-1', 'ベンチプレス',             '胸'),
-  E('ex-chest-2', 'ダンベルフライ',            '胸'),
-  E('ex-chest-3', 'ペックフライ',              '胸'),
+  E('ex-chest-1', 'ベンチプレス',                  '胸'),
+  E('ex-chest-4', 'インクラインダンベルプレス',    '胸'),
+  E('ex-chest-2', 'ダンベルフライ',                '胸'),
+  E('ex-chest-3', 'ペックフライ',                  '胸'),
+  E('ex-chest-5', 'ディップス',                    '胸'),
+  // 背中
+  E('ex-leg-2',   'デッドリフト',             '背中'),
+  E('ex-back-1',  'チンニング',               '背中'),
+  E('ex-back-2',  'ラットプルダウン',         '背中'),
+  E('ex-back-3',  'プーリーロウ',             '背中'),
   // 肩
   E('ex-sh-1',    'ダンベルショルダープレス',  '肩'),
   E('ex-sh-2',    'サイドレイズ',              '肩'),
   E('ex-sh-3',    'リアレイズ',                '肩'),
-  // 腕
-  E('ex-arm-1',   'ダンベルカール',            '腕'),
-  E('ex-arm-2',   'フレンチプレス',            '腕'),
-  E('ex-arm-3',   'ハンマーカール',            '腕'),
-  // 背中
-  E('ex-back-1',  'チンニング',               '背中'),
-  E('ex-back-2',  'ラットプルダウン',         '背中'),
-  E('ex-back-3',  'プーリーロウ',             '背中'),
   // 脚
   E('ex-leg-1',   'スクワット',               '脚'),
-  E('ex-leg-2',   'デッドリフト',             '脚'),
   E('ex-leg-3',   'ブルガリアンスクワット',   '脚'),
-  // 腹
-  E('ex-abs-1',   'アブローラー',             '腹'),
-  E('ex-abs-2',   'ハンギングレッグレイズ',   '腹'),
-  E('ex-abs-3',   'クランチ',                 '腹'),
+  E('ex-leg-5',   'レッグエクステンション',   '脚'),
+  E('ex-leg-6',   'レッグカール',             '脚'),
+  E('ex-leg-4',   'レッグプレス',             '脚'),
+  // 腕
+  E('ex-arm-1',   'インクラインダンベルカール', '腕'),
+  E('ex-arm-3',   'バーベルカール',             '腕'),
+  E('ex-arm-2',   'フレンチプレス',             '腕'),
+  E('ex-arm-4',   'ライイングエクステンション', '腕'),
+  // 腹筋
+  E('ex-abs-1',   'アブローラー',             '腹筋'),
+  E('ex-abs-3',   'クランチ',                 '腹筋'),
+  E('ex-abs-2',   'ハンギングレッグレイズ',   '腹筋'),
 ];
 
 // ─── デフォルトテンプレート ───────────────────────────────
@@ -48,33 +54,33 @@ const byId = (id: string) => SEED_EXERCISES.find((e) => e.id === id)!;
 const SEED_TEMPLATES: WorkoutTemplate[] = [
   {
     id: 'tmpl-chest',
-    name: '胸トレ',
-    exercises: [byId('ex-chest-1'), byId('ex-chest-2'), byId('ex-chest-3')],
-  },
-  {
-    id: 'tmpl-shoulder',
-    name: '肩トレ',
-    exercises: [byId('ex-sh-1'), byId('ex-sh-2'), byId('ex-sh-3')],
-  },
-  {
-    id: 'tmpl-arm',
-    name: '腕トレ',
-    exercises: [byId('ex-arm-1'), byId('ex-arm-2'), byId('ex-arm-3')],
+    name: '胸',
+    exercises: [byId('ex-chest-1'), byId('ex-chest-4'), byId('ex-chest-2'), byId('ex-chest-3'), byId('ex-chest-5')],
   },
   {
     id: 'tmpl-back',
-    name: '背中トレ',
-    exercises: [byId('ex-back-1'), byId('ex-back-2'), byId('ex-back-3')],
+    name: '背中',
+    exercises: [byId('ex-leg-2'), byId('ex-back-1'), byId('ex-back-2'), byId('ex-back-3')],
+  },
+  {
+    id: 'tmpl-shoulder',
+    name: '肩',
+    exercises: [byId('ex-sh-1'), byId('ex-sh-2'), byId('ex-sh-3')],
   },
   {
     id: 'tmpl-leg',
-    name: '脚トレ',
-    exercises: [byId('ex-leg-1'), byId('ex-leg-2'), byId('ex-leg-3')],
+    name: '脚',
+    exercises: [byId('ex-leg-1'), byId('ex-leg-3'), byId('ex-leg-5'), byId('ex-leg-6'), byId('ex-leg-4')],
+  },
+  {
+    id: 'tmpl-arm',
+    name: '腕',
+    exercises: [byId('ex-arm-1'), byId('ex-arm-2'), byId('ex-arm-3'), byId('ex-arm-4')],
   },
   {
     id: 'tmpl-abs',
-    name: '腹筋トレ',
-    exercises: [byId('ex-abs-1'), byId('ex-abs-2'), byId('ex-abs-3')],
+    name: '腹筋',
+    exercises: [byId('ex-abs-1'), byId('ex-abs-3'), byId('ex-abs-2')],
   },
 ];
 

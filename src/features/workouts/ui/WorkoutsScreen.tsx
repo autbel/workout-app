@@ -243,6 +243,7 @@ export default function WorkoutsScreen() {
     recentSessionCount: 3,
     timerSoundEnabled: true,
     timerVibrationEnabled: true,
+    categoryOrder: ['背中', '脚', '腕', '肩', '腹', '胸'],
   });
   const [pickerVisible, setPickerVisible] = useState(false);
   const startedAt = useRef(new Date().toISOString());

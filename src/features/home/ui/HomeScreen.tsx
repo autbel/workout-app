@@ -1,191 +1,185 @@
-import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
-import {
-  FlatList,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { useFocusEffect, useRouter } from 'expo-router';
+import { Calendar } from 'react-native-calendars';
 
-import { getRecentSessions, getSettings, getTemplates } from '@/src/lib/storage';
-import type { AppSettings } from '@/src/lib/storage';
-import type { WorkoutSession, WorkoutTemplate } from '@/src/types';
+import { getSettings, getSessions } from '@/src/lib/storage';
 
-function formatDate(iso: string): string {
-  const d = new Date(iso);
-  return `${d.getMonth() + 1}/${d.getDate()} ${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`;
-}
+type MarkedDates = Record<string, { marked: boolean; dotColor: string }>;
 
-function formatDuration(startedAt: string, finishedAt: string): string {
-  const diffMs = new Date(finishedAt).getTime() - new Date(startedAt).getTime();
-  const mins = Math.floor(diffMs / 60000);
-  if (mins < 60) return `${mins}分`;
-  return `${Math.floor(mins / 60)}時間${mins % 60}分`;
+const DEFAULT_PR = ['ベンチプレス', 'スクワット', 'デッドリフト'];
+
+function todayString(): string {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
 }
 
 export default function HomeScreen() {
   const router = useRouter();
-  const [templates, setTemplates] = useState<WorkoutTemplate[]>([]);
-  const [recentSessions, setRecentSessions] = useState<WorkoutSession[]>([]);
-  const [settings, setSettings] = useState<AppSettings | null>(null);
+  const [markedDates, setMarkedDates] = useState<MarkedDates>({});
+  const [calendarKey, setCalendarKey] = useState(0);
+  const [maxWeights, setMaxWeights] = useState<Record<string, number>>({});
+  const [unit, setUnit] = useState<'kg' | 'lb'>('kg');
+  const [prExercises, setPrExercises] = useState<string[]>(DEFAULT_PR);
+  const today = todayString();
 
   useFocusEffect(
     useCallback(() => {
-      let active = true;
-      Promise.all([getTemplates(), getSettings()]).then(([tmpl, s]) => {
-        if (!active) return;
-        setTemplates(tmpl);
-        setSettings(s);
-        getRecentSessions(s.recentSessionCount).then((sessions) => {
-          if (active) setRecentSessions(sessions);
-        });
+      setCalendarKey((k) => k + 1);
+      Promise.all([getSettings(), getSessions()]).then(([s, sessions]) => {
+        const prEx = s.prExercises ?? DEFAULT_PR;
+        setUnit(s.unit);
+        setPrExercises(prEx);
+
+        const marks: MarkedDates = {};
+        const maxW: Record<string, number> = {};
+
+        for (const session of sessions) {
+          if (!session.finishedAt) continue;
+          for (const e of session.exercises) {
+            if (prEx.includes(e.exerciseName)) {
+              for (const set of e.sets) {
+                if (set.weightKg > (maxW[e.exerciseName] ?? 0)) {
+                  maxW[e.exerciseName] = set.weightKg;
+                }
+              }
+            }
+          }
+          if (session.exercises.length > 0) {
+            const d = new Date(session.startedAt);
+            const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+            marks[dateStr] = { marked: true, dotColor: '#2563eb' };
+          }
+        }
+
+        setMarkedDates(marks);
+        setMaxWeights(maxW);
       });
-      return () => { active = false; };
     }, []),
   );
 
-  function startFromTemplate(template: WorkoutTemplate) {
-    router.push({
-      pathname: '/(tabs)/workouts',
-      params: { templateId: template.id, templateName: template.name },
-    } as never);
-  }
-
-  function startBlank() {
-    router.push('/(tabs)/workouts' as never);
-  }
+  const handleStartToday = () => {
+    router.push(`/workout/${today}` as never);
+  };
 
   return (
-    <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
-      {/* ─── テンプレートから開始 ─── */}
-      <Text style={styles.sectionTitle}>テンプレートから開始</Text>
-
-      {templates.length === 0 ? (
-        <View style={styles.emptyCard}>
-          <Text style={styles.emptyText}>テンプレートがありません</Text>
-          <Text style={styles.emptyHint}>設定タブ → テンプレート管理から作成できます</Text>
-        </View>
-      ) : (
-        <FlatList
-          data={templates}
-          keyExtractor={(item) => item.id}
-          scrollEnabled={false}
-          renderItem={({ item }) => (
-            <View style={styles.card}>
-              <View style={styles.cardBody}>
-                <Text style={styles.cardTitle}>{item.name}</Text>
-                <Text style={styles.cardSub}>
-                  {item.exercises.length} 種目
-                  {item.exercises.length > 0 &&
-                    '  ·  ' + item.exercises.map((e) => e.name).join(', ')}
-                </Text>
-              </View>
-              <Pressable
-                style={styles.startBtn}
-                onPress={() => startFromTemplate(item)}
-              >
-                <Text style={styles.startBtnText}>開始</Text>
-              </Pressable>
-            </View>
-          )}
+    <SafeAreaView style={styles.container}>
+      <Pressable onPress={() => router.navigate('/(tabs)/history' as never)}>
+        <Calendar
+          key={calendarKey}
+          style={styles.calendar}
+          markedDates={markedDates}
+          theme={{
+            todayTextColor: '#2563eb',
+            arrowColor: '#2563eb',
+            dotColor: '#2563eb',
+            monthTextColor: '#1e293b',
+            textMonthFontWeight: '700',
+            textDayFontSize: 12,
+            textMonthFontSize: 14,
+          }}
         />
-      )}
-
-      {/* ─── 空白から開始 ─── */}
-      <Pressable style={styles.blankBtn} onPress={startBlank}>
-        <Text style={styles.blankBtnText}>＋ 空白から開始</Text>
       </Pressable>
 
-      {/* ─── 最近のワークアウト ─── */}
-      <Text style={[styles.sectionTitle, { marginTop: 28 }]}>最近のワークアウト</Text>
-
-      {recentSessions.length === 0 ? (
-        <View style={styles.emptyCard}>
-          <Text style={styles.emptyText}>まだ記録がありません</Text>
-          <Text style={styles.emptyHint}>ワークアウトを完了すると、ここに表示されます</Text>
+      {/* Big3 最大重量 */}
+      <View style={styles.big3Section}>
+        <Text style={styles.sectionTitle}>自己記録（最大重量）</Text>
+        <View style={styles.big3Row}>
+          {prExercises.map((name) => {
+            const kg = maxWeights[name];
+            const display =
+              kg == null
+                ? '–'
+                : unit === 'lb'
+                  ? `${Math.round(kg * 2.20462 * 10) / 10} lb`
+                  : `${kg} kg`;
+            return (
+              <View key={name} style={styles.big3Card}>
+                <Text style={styles.big3Name}>{name}</Text>
+                <Text style={styles.big3Value}>{display}</Text>
+              </View>
+            );
+          })}
         </View>
-      ) : (
-        recentSessions.map((session) => (
-          <View key={session.id} style={styles.card}>
-            <View style={styles.cardBody}>
-              <Text style={styles.cardTitle}>
-                {session.templateName ?? 'フリーワークアウト'}
-              </Text>
-              <Text style={styles.cardSub}>
-                {formatDate(session.startedAt)}
-                {session.finishedAt
-                  ? '  ·  ' + formatDuration(session.startedAt, session.finishedAt)
-                  : ''}
-              </Text>
-              <Text style={styles.cardSub}>
-                {session.exercises.map((e) => e.exerciseName).join(', ')}
-              </Text>
-            </View>
-          </View>
-        ))
-      )}
-    </ScrollView>
+      </View>
+
+      <View style={styles.footer}>
+        <Pressable style={styles.startBtn} onPress={handleStartToday}>
+          <Text style={styles.startBtnText}>今日の筋トレを開始</Text>
+        </Pressable>
+      </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  scroll: { flex: 1, backgroundColor: '#f5f5f5' },
-  content: { padding: 16, paddingBottom: 40 },
-
-  sectionTitle: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#888',
-    textTransform: 'uppercase',
-    letterSpacing: 0.8,
-    marginBottom: 10,
-  },
-
-  card: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#fff',
+  container: { flex: 1, backgroundColor: '#f5f5f5' },
+  calendar: {
     borderRadius: 12,
-    padding: 14,
-    marginBottom: 10,
+    margin: 12,
     shadowColor: '#000',
     shadowOpacity: 0.06,
     shadowRadius: 4,
     shadowOffset: { width: 0, height: 2 },
     elevation: 2,
   },
-  cardBody: { flex: 1 },
-  cardTitle: { fontSize: 16, fontWeight: '600', marginBottom: 3 },
-  cardSub: { fontSize: 12, color: '#888', marginTop: 1 },
-
-  startBtn: {
-    backgroundColor: '#007AFF',
-    borderRadius: 8,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    marginLeft: 10,
+  big3Section: {
+    paddingHorizontal: 12,
+    paddingBottom: 12,
   },
-  startBtnText: { color: '#fff', fontWeight: '700', fontSize: 14 },
-
-  blankBtn: {
-    borderWidth: 1.5,
-    borderColor: '#007AFF',
-    borderRadius: 10,
-    padding: 12,
-    alignItems: 'center',
-    marginTop: 4,
+  sectionTitle: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#9ca3af',
+    marginBottom: 8,
+    letterSpacing: 0.5,
   },
-  blankBtnText: { color: '#007AFF', fontWeight: '600', fontSize: 15 },
-
-  emptyCard: {
+  big3Row: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  big3Card: {
+    flex: 1,
     backgroundColor: '#fff',
     borderRadius: 12,
-    padding: 20,
+    padding: 12,
     alignItems: 'center',
-    marginBottom: 10,
+    shadowColor: '#000',
+    shadowOpacity: 0.06,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 2,
   },
-  emptyText: { fontSize: 15, fontWeight: '600', color: '#555', marginBottom: 4 },
-  emptyHint: { fontSize: 12, color: '#aaa', textAlign: 'center' },
+  big3Name: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#6b7280',
+    marginBottom: 6,
+    textAlign: 'center',
+  },
+  big3Value: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#1e293b',
+  },
+  footer: {
+    padding: 16,
+    paddingBottom: 32,
+  },
+  startBtn: {
+    backgroundColor: '#2563eb',
+    borderRadius: 14,
+    paddingVertical: 16,
+    alignItems: 'center',
+    shadowColor: '#2563eb',
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 4,
+  },
+  startBtnText: { color: '#fff', fontSize: 17, fontWeight: '700' },
 });

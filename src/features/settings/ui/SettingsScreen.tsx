@@ -3,7 +3,7 @@ import { useCallback, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 
-import { getSettings, patchSettings } from '@/src/lib/storage';
+import { DEFAULT_CATEGORY_ORDER, getSettings, patchSettings } from '@/src/lib/storage';
 import type { AppSettings } from '@/src/lib/storage';
 
 const DEFAULT: AppSettings = {
@@ -11,6 +11,8 @@ const DEFAULT: AppSettings = {
   recentSessionCount: 3,
   timerSoundEnabled: true,
   timerVibrationEnabled: true,
+  categoryOrder: DEFAULT_CATEGORY_ORDER,
+  prExercises: ['ベンチプレス', 'スクワット', 'デッドリフト'],
 };
 
 export default function SettingsScreen() {
@@ -20,14 +22,16 @@ export default function SettingsScreen() {
   useFocusEffect(
     useCallback(() => {
       let active = true;
-      getSettings().then((s) => { if (active) setSettings(s); });
+      getSettings().then((s) => {
+        if (active) setSettings({ ...DEFAULT, ...s });
+      });
       return () => { active = false; };
     }, []),
   );
 
   async function toggle<K extends keyof AppSettings>(key: K, value: AppSettings[K]) {
     const updated = await patchSettings({ [key]: value } as Partial<AppSettings>);
-    setSettings(updated);
+    setSettings({ ...DEFAULT, ...updated });
   }
 
   return (
@@ -35,9 +39,24 @@ export default function SettingsScreen() {
       {/* ─── コンテンツ ─── */}
       <Text style={styles.sectionTitle}>コンテンツ</Text>
       <View style={styles.card}>
-        <Pressable style={styles.row} onPress={() => router.push('/template' as never)}>
+        <Pressable style={[styles.row, styles.rowBorder]} onPress={() => router.push('/category' as never)}>
+          <FontAwesome name="tag" size={18} color="#2563eb" style={styles.icon} />
+          <Text style={styles.rowLabel}>部位の編集</Text>
+          <FontAwesome name="chevron-right" size={14} color="#bbb" />
+        </Pressable>
+        <Pressable style={[styles.row, styles.rowBorder]} onPress={() => router.push('/exercise' as never)}>
+          <FontAwesome name="heartbeat" size={18} color="#2563eb" style={styles.icon} />
+          <Text style={styles.rowLabel}>種目の編集</Text>
+          <FontAwesome name="chevron-right" size={14} color="#bbb" />
+        </Pressable>
+        <Pressable style={[styles.row, styles.rowBorder]} onPress={() => router.push('/template' as never)}>
           <FontAwesome name="list-ul" size={18} color="#2563eb" style={styles.icon} />
-          <Text style={styles.rowLabel}>テンプレートを管理</Text>
+          <Text style={styles.rowLabel}>メニューの編集</Text>
+          <FontAwesome name="chevron-right" size={14} color="#bbb" />
+        </Pressable>
+        <Pressable style={styles.row} onPress={() => router.push('/pr-exercises' as never)}>
+          <FontAwesome name="trophy" size={18} color="#2563eb" style={styles.icon} />
+          <Text style={styles.rowLabel}>自己記録の編集</Text>
           <FontAwesome name="chevron-right" size={14} color="#bbb" />
         </Pressable>
       </View>
@@ -65,28 +84,6 @@ export default function SettingsScreen() {
                 lb
               </Text>
             </Pressable>
-          </View>
-        </View>
-      </View>
-
-      {/* ─── ホーム表示件数 ─── */}
-      <Text style={styles.sectionTitle}>ホーム</Text>
-      <View style={styles.card}>
-        <View style={styles.row}>
-          <FontAwesome name="history" size={18} color="#555" style={styles.icon} />
-          <Text style={styles.rowLabel}>最近のセッション表示数</Text>
-          <View style={styles.countToggle}>
-            {([3, 5] as const).map((n) => (
-              <Pressable
-                key={n}
-                style={[styles.unitBtn, settings.recentSessionCount === n && styles.unitBtnActive]}
-                onPress={() => toggle('recentSessionCount', n)}
-              >
-                <Text style={[styles.unitBtnText, settings.recentSessionCount === n && styles.unitBtnTextActive]}>
-                  {n}
-                </Text>
-              </Pressable>
-            ))}
           </View>
         </View>
       </View>
@@ -135,7 +132,6 @@ const styles = StyleSheet.create({
   rowLabel: { flex: 1, fontSize: 15 },
 
   unitToggle: { flexDirection: 'row', gap: 4 },
-  countToggle: { flexDirection: 'row', gap: 4 },
   unitBtn: {
     paddingHorizontal: 14,
     paddingVertical: 6,

@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import {
   Alert,
-  FlatList,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -17,6 +16,7 @@ import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { getTemplates, upsertTemplate } from '@/src/lib/storage';
 import { generateId } from '@/src/lib/id';
 import ExercisePicker from '@/src/components/ExercisePicker';
+import DraggableList from '@/src/components/DraggableList';
 import type { Exercise, WorkoutTemplate } from '@/src/types';
 
 type DraftExercise = { id: string; name: string };
@@ -32,7 +32,7 @@ export default function TemplateEditScreen() {
   const [pickerVisible, setPickerVisible] = useState(false);
 
   useEffect(() => {
-    navigation.setOptions({ title: isNew ? '新規テンプレート' : 'テンプレートを編集' });
+    navigation.setOptions({ title: isNew ? '新規メニュー' : 'メニューを編集' });
 
     if (!isNew) {
       getTemplates().then((all) => {
@@ -52,11 +52,11 @@ export default function TemplateEditScreen() {
   const handleSave = async () => {
     const trimmedName = templateName.trim();
     if (!trimmedName) {
-      Alert.alert('エラー', 'テンプレート名を入力してください');
+      Alert.alert('エラー', 'メニュー名を入力してください');
       return;
     }
     if (exercises.length === 0) {
-      Alert.alert('エラー', 'エクササイズを1つ以上追加してください');
+      Alert.alert('エラー', '種目を1つ以上追加してください');
       return;
     }
 
@@ -82,7 +82,7 @@ export default function TemplateEditScreen() {
       <ScrollView contentContainerStyle={styles.scroll}>
         {/* テンプレート名 */}
         <View style={styles.section}>
-          <Text style={styles.label}>テンプレート名</Text>
+          <Text style={styles.label}>メニュー名</Text>
           <TextInput
             style={styles.input}
             value={templateName}
@@ -92,15 +92,17 @@ export default function TemplateEditScreen() {
           />
         </View>
 
-        {/* エクササイズリスト */}
+        {/* 種目リスト */}
         <View style={styles.section}>
-          <Text style={styles.label}>エクササイズ</Text>
-          <FlatList
+          <Text style={styles.label}>種目</Text>
+          <DraggableList
             data={exercises}
             keyExtractor={(item) => item.id}
-            scrollEnabled={false}
-            renderItem={({ item, index }) => (
-              <View style={styles.exRow}>
+            itemHeight={48}
+            onReorder={setExercises}
+            renderItem={(item, index, isDragging) => (
+              <View style={[styles.exRow, isDragging && styles.exRowDragging]}>
+                <FontAwesome name="bars" size={14} color="#ccc" style={styles.dragHandle} />
                 <Text style={styles.exIndex}>{index + 1}.</Text>
                 <Text style={styles.exName}>{item.name}</Text>
                 <Pressable onPress={() => removeExercise(item.id)} hitSlop={12}>
@@ -108,12 +110,11 @@ export default function TemplateEditScreen() {
                 </Pressable>
               </View>
             )}
-            ItemSeparatorComponent={() => <View style={{ height: 8 }} />}
           />
 
           <Pressable style={styles.addExBtn} onPress={() => setPickerVisible(true)}>
             <FontAwesome name="plus" size={14} color="#2563eb" />
-            <Text style={styles.addExText}>エクササイズを追加</Text>
+            <Text style={styles.addExText}>種目を追加</Text>
           </Pressable>
         </View>
 
@@ -146,7 +147,16 @@ const styles = StyleSheet.create({
     fontSize: 16,
     backgroundColor: '#fafafa',
   },
-  exRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  exRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingVertical: 10,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: '#f0f0f0',
+  },
+  exRowDragging: { backgroundColor: '#f0f5ff', borderRadius: 6 },
+  dragHandle: { marginRight: 2 },
   exIndex: { fontSize: 14, color: '#888', width: 20 },
   exName: { flex: 1, fontSize: 15 },
   addExBtn: {

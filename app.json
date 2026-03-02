@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "workout-app",
+    "name": "筋トレ日記",
     "slug": "workout-app",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -13,9 +13,12 @@
       "backgroundColor": "#ffffff"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.personal.kintorenikki"
     },
     "android": {
+      "package": "com.personal.kintorenikki",
+      "versionCode": 1,
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
@@ -34,6 +37,13 @@
     ],
     "experiments": {
       "typedRoutes": true
-    }
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "005a024e-a6d9-45b3-b424-af856812a725"
+      }
+    },
+    "owner": "autbel"
   }
 }

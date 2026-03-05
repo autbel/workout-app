@@ -1,8 +1,9 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { Calendar } from 'react-native-calendars';
+import type { DateData } from 'react-native-calendars';
 
 import { getSettings, getSessions } from '@/src/lib/storage';
 
@@ -26,10 +27,15 @@ export default function HomeScreen() {
   const [unit, setUnit] = useState<'kg' | 'lb'>('kg');
   const [prExercises, setPrExercises] = useState<string[]>(DEFAULT_PR);
   const today = todayString();
+  const navigatingToWorkoutRef = useRef(false);
 
   useFocusEffect(
     useCallback(() => {
-      setCalendarKey((k) => k + 1);
+      const fromWorkout = navigatingToWorkoutRef.current;
+      navigatingToWorkoutRef.current = false;
+      if (!fromWorkout) {
+        setCalendarKey((k) => k + 1);
+      }
       Promise.all([getSettings(), getSessions()]).then(([s, sessions]) => {
         const prEx = s.prExercises ?? DEFAULT_PR;
         setUnit(s.unit);
@@ -62,28 +68,33 @@ export default function HomeScreen() {
     }, []),
   );
 
+  const handleDayPress = (day: DateData) => {
+    navigatingToWorkoutRef.current = true;
+    router.push(`/workout/${day.dateString}` as never);
+  };
+
   const handleStartToday = () => {
+    navigatingToWorkoutRef.current = true;
     router.push(`/workout/${today}` as never);
   };
 
   return (
     <SafeAreaView style={styles.container}>
-      <Pressable onPress={() => router.navigate('/(tabs)/history' as never)}>
-        <Calendar
-          key={calendarKey}
-          style={styles.calendar}
-          markedDates={markedDates}
-          theme={{
-            todayTextColor: '#2563eb',
-            arrowColor: '#2563eb',
-            dotColor: '#2563eb',
-            monthTextColor: '#1e293b',
-            textMonthFontWeight: '700',
-            textDayFontSize: 12,
-            textMonthFontSize: 14,
-          }}
-        />
-      </Pressable>
+      <Calendar
+        key={calendarKey}
+        style={styles.calendar}
+        markedDates={markedDates}
+        onDayPress={handleDayPress}
+        theme={{
+          todayTextColor: '#2563eb',
+          arrowColor: '#2563eb',
+          dotColor: '#2563eb',
+          monthTextColor: '#1e293b',
+          textMonthFontWeight: '700',
+          textDayFontSize: 12,
+          textMonthFontSize: 14,
+        }}
+      />
 
       {/* Big3 最大重量 */}
       <View style={styles.big3Section}>
@@ -109,7 +120,7 @@ export default function HomeScreen() {
 
       <View style={styles.footer}>
         <Pressable style={styles.startBtn} onPress={handleStartToday}>
-          <Text style={styles.startBtnText}>今日の筋トレを開始</Text>
+          <Text style={styles.startBtnText}>今日のトレーニングを開始</Text>
         </Pressable>
       </View>
     </SafeAreaView>

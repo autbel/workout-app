@@ -1,24 +1,17 @@
 import { useMemo } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
-import { LineChart } from 'react-native-gifted-charts';
 
 import type { WorkoutSession } from '@/src/types';
+import WorkoutProgressChart, {
+  COLOR_RM,
+  COLOR_WEIGHT,
+  type WorkoutProgressDataPoint,
+} from './WorkoutProgressChart';
 
 interface Props {
   sessions: WorkoutSession[];
   selectedExercise?: string | null;
   exercisesInCategory?: string[];
-}
-
-interface DataPoint {
-  value: number;
-  label: string;
-  dataPointText: string;
-}
-
-interface ChartPair {
-  rm: DataPoint[];
-  weight: DataPoint[];
 }
 
 /** Epley 式による推定1RM */
@@ -27,110 +20,105 @@ function epley1RM(weightKg: number, reps: number): number {
   return weightKg * (1 + reps / 30);
 }
 
-/** 種目名でフィルタして日付別の最大1RM・最大重量を返す */
-function buildChartData(sessions: WorkoutSession[], exerciseName: string): ChartPair {
-  const byDate = new Map<string, { rm: number; weight: number }>();
+/** 日付からその週の月曜日を YYYY-MM-DD 文字列で返す */
+function getMondayKey(date: Date): string {
+  const d = new Date(date);
+  d.setHours(0, 0, 0, 0);
+  const dow = d.getDay(); // 0=日, 1=月, ..., 6=土
+  d.setDate(d.getDate() - (dow === 0 ? 6 : dow - 1));
+  return d.toISOString().slice(0, 10);
+}
 
+/** 種目名でフィルタして週単位の最大1RM・最大重量を返す */
+function buildChartData(
+  sessions: WorkoutSession[],
+  exerciseName: string,
+): WorkoutProgressDataPoint[] {
   const sorted = [...sessions].sort((a, b) =>
     a.startedAt < b.startedAt ? -1 : 1,
   );
+
+  const relevant = sorted.filter(
+    (s) => s.finishedAt && s.exercises.some((e) => e.exerciseName === exerciseName),
+  );
+  if (relevant.length === 0) return [];
+
+  const byWeek = new Map<string, { rm: number | null; weight: number | null; date: Date }>();
 
   for (const session of sorted) {
     if (!session.finishedAt) continue;
     const entry = session.exercises.find((e) => e.exerciseName === exerciseName);
     if (!entry) continue;
-    const d = new Date(session.startedAt);
-    const dateStr = `${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-    const current = byDate.get(dateStr) ?? { rm: 0, weight: 0 };
+
+    const sessionDate = new Date(session.startedAt);
+    const weekKey     = getMondayKey(sessionDate);
+    const current     = byWeek.get(weekKey) ?? { rm: null, weight: null, date: sessionDate };
+
     for (const s of entry.sets) {
-      const rm = epley1RM(s.weightKg, s.reps);
-      if (rm > current.rm) current.rm = rm;
-      if (s.weightKg > current.weight) current.weight = s.weightKg;
+      if (s.weightKg > 0 && s.reps > 0) {
+        const rm = epley1RM(s.weightKg, s.reps);
+        if (current.rm === null || rm > current.rm) {
+          current.rm   = rm;
+          current.date = sessionDate;
+        }
+        if (current.weight === null || s.weightKg > current.weight) {
+          current.weight = s.weightKg;
+        }
+      }
     }
-    byDate.set(dateStr, current);
+    byWeek.set(weekKey, current);
   }
 
-  const entries = Array.from(byDate.entries());
-  return {
-    rm: entries.map(([label, v]) => ({
-      value: Math.round(v.rm * 10) / 10,
-      label,
-      dataPointText: String(Math.round(v.rm)),
-    })),
-    weight: entries.map(([label, v]) => ({
-      value: Math.round(v.weight * 10) / 10,
-      label,
-      dataPointText: String(Math.round(v.weight)),
-    })),
-  };
+  return Array.from(byWeek.entries())
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([, v]) => ({
+      date:      v.date,
+      oneRM:     v.rm !== null ? Math.round(v.rm * 10) / 10 : null,
+      maxWeight: v.weight,
+    }));
 }
 
-const COLOR_RM = '#2563eb';
-const COLOR_WEIGHT = '#16a34a';
-
-function Legend() {
+function ChartHeader({ title, showLegend }: { title: string; showLegend: boolean }) {
   return (
-    <View style={styles.legend}>
-      <View style={styles.legendItem}>
-        <View style={[styles.legendDot, { backgroundColor: COLOR_RM }]} />
-        <Text style={styles.legendText}>推定1RM</Text>
-      </View>
-      <View style={styles.legendItem}>
-        <View style={[styles.legendDot, { backgroundColor: COLOR_WEIGHT }]} />
-        <Text style={styles.legendText}>最大重量</Text>
-      </View>
+    <View style={styles.chartHeader}>
+      <Text style={styles.exerciseName}>{title}</Text>
+      {showLegend && (
+        <View style={styles.legend}>
+          <View style={styles.legendItem}>
+            <View style={[styles.legendDot, { borderColor: COLOR_RM }]} />
+            <Text style={styles.legendText}>推定1RM</Text>
+          </View>
+          <View style={styles.legendItem}>
+            <View style={[styles.legendDot, { borderColor: COLOR_WEIGHT }]} />
+            <Text style={styles.legendText}>最大重量</Text>
+          </View>
+        </View>
+      )}
     </View>
   );
 }
 
-/** 単一種目チャートカード */
+/** 単一種目チャートカード（ALL一覧用コンパクト版） */
 function ExerciseChart({
   sessions,
   exerciseName,
+  xStart,
+  xEnd,
 }: {
   sessions: WorkoutSession[];
   exerciseName: string;
+  xStart: Date;
+  xEnd: Date;
 }) {
-  const { rm, weight } = useMemo(
+  const chartData = useMemo(
     () => buildChartData(sessions, exerciseName),
     [sessions, exerciseName],
   );
 
   return (
-    <View style={styles.chartContainer}>
-      <Text style={styles.exerciseName}>{exerciseName}</Text>
-      {rm.length < 2 ? (
-        <View style={styles.noData}>
-          <Text style={styles.noDataText}>データが2件以上必要です</Text>
-        </View>
-      ) : (
-        <>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-            <LineChart
-              data={rm}
-              data2={weight}
-              width={Math.max(280, rm.length * 60)}
-              height={160}
-              color={COLOR_RM}
-              color2={COLOR_WEIGHT}
-              thickness={2}
-              thickness2={2}
-              dataPointsColor={COLOR_RM}
-              dataPointsColor2={COLOR_WEIGHT}
-              dataPointsRadius={4}
-              dataPointsRadius2={4}
-              showTextOnFocus
-              textColor="#333"
-              textFontSize={11}
-              xAxisLabelTextStyle={{ fontSize: 10, color: '#888' }}
-              yAxisTextStyle={{ fontSize: 10, color: '#888' }}
-              curved
-              isAnimated
-            />
-          </ScrollView>
-          <Legend />
-        </>
-      )}
+    <View style={styles.compactChartContainer}>
+      <ChartHeader title={exerciseName} showLegend={chartData.length >= 2} />
+      <WorkoutProgressChart data={chartData} chartHeight={110} xStart={xStart} xEnd={xEnd} />
     </View>
   );
 }
@@ -140,50 +128,32 @@ export default function HistoryGraphView({
   selectedExercise,
   exercisesInCategory = [],
 }: Props) {
-  const singlePair = useMemo(
+  const singleData = useMemo(
     () => (selectedExercise ? buildChartData(sessions, selectedExercise) : null),
     [sessions, selectedExercise],
   );
 
-  // 種目指定あり → 単一グラフ（2本線）
-  if (selectedExercise && singlePair) {
-    const { rm, weight } = singlePair;
+  // 全セッションの最古日付（X軸左端の共通基準）
+  const globalMinDate = useMemo(() => {
+    const dates = sessions
+      .filter((s) => s.finishedAt)
+      .map((s) => new Date(s.startedAt).getTime());
+    return dates.length > 0 ? new Date(Math.min(...dates)) : new Date();
+  }, [sessions]);
+
+  const today = useMemo(() => {
+    const d = new Date();
+    d.setHours(23, 59, 59, 999);
+    return d;
+  }, []);
+
+  // 種目指定あり → 単一グラフ
+  if (selectedExercise && singleData) {
     return (
       <View style={styles.container}>
         <View style={styles.chartContainer}>
-          <Text style={styles.exerciseName}>{selectedExercise}</Text>
-          {rm.length < 2 ? (
-            <View style={styles.noData}>
-              <Text style={styles.noDataText}>データが2件以上必要です</Text>
-            </View>
-          ) : (
-            <>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                <LineChart
-                  data={rm}
-                  data2={weight}
-                  width={Math.max(300, rm.length * 60)}
-                  height={200}
-                  color={COLOR_RM}
-                  color2={COLOR_WEIGHT}
-                  thickness={2}
-                  thickness2={2}
-                  dataPointsColor={COLOR_RM}
-                  dataPointsColor2={COLOR_WEIGHT}
-                  dataPointsRadius={4}
-                  dataPointsRadius2={4}
-                  showTextOnFocus
-                  textColor="#333"
-                  textFontSize={11}
-                  xAxisLabelTextStyle={{ fontSize: 10, color: '#888' }}
-                  yAxisTextStyle={{ fontSize: 10, color: '#888' }}
-                  curved
-                  isAnimated
-                />
-              </ScrollView>
-              <Legend />
-            </>
-          )}
+          <ChartHeader title={selectedExercise} showLegend={singleData.length >= 2} />
+          <WorkoutProgressChart data={singleData} chartHeight={260} xStart={globalMinDate} xEnd={today} />
         </View>
       </View>
     );
@@ -201,38 +171,52 @@ export default function HistoryGraphView({
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.allContent}>
       {exercisesInCategory.map((name) => (
-        <ExerciseChart key={name} sessions={sessions} exerciseName={name} />
+        <ExerciseChart key={name} sessions={sessions} exerciseName={name} xStart={globalMinDate} xEnd={today} />
       ))}
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
-  allContent: { paddingBottom: 24 },
+  container:   { flex: 1 },
+  allContent:  { paddingBottom: 24 },
 
   chartContainer: {
-    backgroundColor: '#fff',
-    margin: 12,
-    marginBottom: 0,
-    borderRadius: 12,
-    padding: 16,
-    shadowColor: '#000',
-    shadowOpacity: 0.06,
-    shadowRadius: 4,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 2,
+    backgroundColor:  '#fff',
+    margin:           12,
+    marginBottom:     0,
+    borderRadius:     12,
+    paddingHorizontal: 12,
+    paddingTop:       8,
+    paddingBottom:    4,
+    shadowColor:      '#000',
+    shadowOpacity:    0.06,
+    shadowRadius:     4,
+    shadowOffset:     { width: 0, height: 2 },
+    elevation:        2,
   },
-  exerciseName: { fontSize: 14, fontWeight: '700', color: '#1e293b', marginBottom: 10 },
+  compactChartContainer: {
+    backgroundColor:  '#fff',
+    marginHorizontal: 12,
+    marginTop:        6,
+    borderRadius:     12,
+    paddingHorizontal: 10,
+    paddingTop:       6,
+    paddingBottom:    4,
+    shadowColor:      '#000',
+    shadowOpacity:    0.06,
+    shadowRadius:     4,
+    shadowOffset:     { width: 0, height: 2 },
+    elevation:        2,
+  },
+  chartHeader:  { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 2 },
+  exerciseName: { fontSize: 13, fontWeight: '700', color: '#1e293b' },
 
-  legend: { flexDirection: 'row', justifyContent: 'center', gap: 16, marginTop: 10 },
-  legendItem: { flexDirection: 'row', alignItems: 'center', gap: 5 },
-  legendDot: { width: 10, height: 10, borderRadius: 5 },
-  legendText: { fontSize: 12, color: '#6b7280' },
+  legend:     { flexDirection: 'row', gap: 10 },
+  legendItem: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  legendDot:  { width: 7, height: 7, borderRadius: 3.5, borderWidth: 1.5, backgroundColor: 'white' },
+  legendText: { fontSize: 10, color: '#6b7280' },
 
-  noData: { height: 120, alignItems: 'center', justifyContent: 'center' },
-  noDataText: { color: '#aaa', fontSize: 14 },
-
-  empty: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32 },
-  emptyText: { color: '#aaa', fontSize: 14, textAlign: 'center' },
+  empty:      { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32 },
+  emptyText:  { color: '#aaa', fontSize: 14, textAlign: 'center' },
 });

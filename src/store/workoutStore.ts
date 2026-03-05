@@ -1,6 +1,11 @@
 import { create } from 'zustand';
 import type { Exercise } from '@/src/types';
 
+export interface CopiedSets {
+  exerciseName: string;
+  sets: { reps: string; weightKg: string }[];
+}
+
 interface WorkoutStore {
   /** AddExerciseScreen → WorkoutScreen へ渡す種目キュー */
   pendingExercises: Exercise[];
@@ -8,6 +13,9 @@ interface WorkoutStore {
   pendingTemplateName: string | null;
   addPending: (exercises: Exercise[], templateId?: string, templateName?: string) => void;
   clearPending: () => void;
+  /** ExerciseHistoryScreen → WorkoutScreen へ渡すコピーセット */
+  copiedSets: CopiedSets | null;
+  setCopiedSets: (data: CopiedSets | null) => void;
 }
 
 export const useWorkoutStore = create<WorkoutStore>((set) => ({
@@ -21,4 +29,6 @@ export const useWorkoutStore = create<WorkoutStore>((set) => ({
       pendingTemplateName: templateName ?? state.pendingTemplateName,
     })),
   clearPending: () => set({ pendingExercises: [], pendingTemplateId: null, pendingTemplateName: null }),
+  copiedSets: null,
+  setCopiedSets: (data) => set({ copiedSets: data }),
 }));

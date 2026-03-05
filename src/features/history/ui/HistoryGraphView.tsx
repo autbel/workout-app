@@ -20,12 +20,12 @@ function epley1RM(weightKg: number, reps: number): number {
   return weightKg * (1 + reps / 30);
 }
 
-/** 日付からその週の月曜日を YYYY-MM-DD 文字列で返す */
-function getMondayKey(date: Date): string {
+/** 日付からその週の日曜日を YYYY-MM-DD 文字列で返す */
+function getSundayKey(date: Date): string {
   const d = new Date(date);
   d.setHours(0, 0, 0, 0);
   const dow = d.getDay(); // 0=日, 1=月, ..., 6=土
-  d.setDate(d.getDate() - (dow === 0 ? 6 : dow - 1));
+  d.setDate(d.getDate() - dow); // 日曜日に戻す
   return d.toISOString().slice(0, 10);
 }
 
@@ -51,7 +51,7 @@ function buildChartData(
     if (!entry) continue;
 
     const sessionDate = new Date(session.startedAt);
-    const weekKey     = getMondayKey(sessionDate);
+    const weekKey     = getSundayKey(sessionDate);
     const current     = byWeek.get(weekKey) ?? { rm: null, weight: null, date: sessionDate };
 
     for (const s of entry.sets) {

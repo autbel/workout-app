@@ -3,20 +3,39 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 
-import { getExercises, getSettings, patchSettings } from '@/src/lib/storage';
+import { getExercises, getSettings, patchSettings, DEFAULT_CATEGORY_ORDER } from '@/src/lib/storage';
 import type { Exercise } from '@/src/types';
 import DraggableList from '@/src/components/DraggableList';
 
 const DEFAULT_PR = ['ベンチプレス', 'スクワット', 'デッドリフト'];
 
+interface Section { title: string; data: Exercise[] }
+
+function buildSections(exercises: Exercise[], categoryOrder: string[]): Section[] {
+  const map = new Map<string, Exercise[]>();
+  for (const cat of categoryOrder) map.set(cat, []);
+  for (const ex of exercises) {
+    const cat = ex.category ?? 'その他';
+    if (!map.has(cat)) map.set(cat, []);
+    map.get(cat)!.push(ex);
+  }
+  return Array.from(map.entries())
+    .filter(([, items]) => items.length > 0)
+    .map(([title, data]) => ({ title, data }));
+}
+
 export default function PrExercisesScreen() {
   const [selected, setSelected] = useState<string[]>(DEFAULT_PR);
   const [allExercises, setAllExercises] = useState<Exercise[]>([]);
+  const [categoryOrder, setCategoryOrder] = useState<string[]>(DEFAULT_CATEGORY_ORDER);
 
   useFocusEffect(
     useCallback(() => {
-      getSettings().then((s) => setSelected(s.prExercises ?? DEFAULT_PR));
-      getExercises().then(setAllExercises);
+      Promise.all([getSettings(), getExercises()]).then(([s, exs]) => {
+        setSelected(s.prExercises ?? DEFAULT_PR);
+        setCategoryOrder(s.categoryOrder ?? DEFAULT_CATEGORY_ORDER);
+        setAllExercises(exs);
+      });
     }, []),
   );
 
@@ -38,7 +57,8 @@ export default function PrExercisesScreen() {
     await patchSettings({ prExercises: newOrder });
   };
 
-  const available = allExercises.filter((e) => !selected.includes(e.name));
+  const availableExercises = allExercises.filter((e) => !selected.includes(e.name));
+  const availableSections = buildSections(availableExercises, categoryOrder);
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
@@ -68,28 +88,35 @@ export default function PrExercisesScreen() {
         )}
       </View>
 
-      {/* 追加できる種目 */}
+      {/* 追加できる種目（部位分類） */}
       {selected.length < 3 && (
         <>
           <Text style={styles.sectionTitle}>種目を追加</Text>
-          <View style={styles.card}>
-            {available.length === 0 ? (
+          {availableSections.length === 0 ? (
+            <View style={styles.card}>
               <View style={styles.row}>
                 <Text style={styles.empty}>追加できる種目がありません</Text>
               </View>
-            ) : (
-              available.map((ex, index) => (
-                <Pressable
-                  key={ex.id}
-                  style={[styles.row, index < available.length - 1 && styles.rowBorder]}
-                  onPress={() => add(ex.name)}
-                >
-                  <FontAwesome name="plus-circle" size={16} color="#2563eb" style={styles.icon} />
-                  <Text style={styles.rowLabel}>{ex.name}</Text>
-                </Pressable>
-              ))
-            )}
-          </View>
+            </View>
+          ) : (
+            availableSections.map((section) => (
+              <View key={section.title} style={styles.categoryBlock}>
+                <Text style={styles.categoryLabel}>{section.title}</Text>
+                <View style={styles.card}>
+                  {section.data.map((ex, index) => (
+                    <Pressable
+                      key={ex.id}
+                      style={[styles.row, index < section.data.length - 1 && styles.rowBorder]}
+                      onPress={() => add(ex.name)}
+                    >
+                      <FontAwesome name="plus-circle" size={16} color="#2563eb" style={styles.icon} />
+                      <Text style={styles.rowLabel}>{ex.name}</Text>
+                    </Pressable>
+                  ))}
+                </View>
+              </View>
+            ))
+          )}
         </>
       )}
 
@@ -120,6 +147,17 @@ const styles = StyleSheet.create({
   rowLabel: { flex: 1, fontSize: 15 },
   dragHandle: { marginRight: 12 },
   empty: { fontSize: 14, color: '#aaa' },
+  icon: { marginRight: 8 },
+  categoryBlock: { marginBottom: 4 },
+  categoryLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#888',
+    textTransform: 'uppercase',
+    letterSpacing: 0.6,
+    marginBottom: 4,
+    paddingHorizontal: 4,
+  },
   hint: {
     fontSize: 12,
     color: '#9ca3af',

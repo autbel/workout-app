@@ -7,6 +7,7 @@ import {
   Text,
   View,
 } from 'react-native';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 
 import { getExercises, getSettings, getTemplates, DEFAULT_CATEGORY_ORDER } from '@/src/lib/storage';
@@ -37,6 +38,7 @@ function buildSections(exercises: Exercise[], categoryOrder: string[]): Section[
 
 export default function AddExerciseScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { addPending } = useWorkoutStore();
 
   const [templates, setTemplates] = useState<WorkoutTemplate[]>([]);
@@ -63,8 +65,10 @@ export default function AddExerciseScreen() {
   };
 
   return (
+    <SafeAreaView style={styles.container} edges={['bottom']}>
     <SectionList
       style={styles.list}
+      contentContainerStyle={{ paddingBottom: insets.bottom + 16 }}
       sections={sections}
       keyExtractor={(item) => item.id}
       stickySectionHeadersEnabled
@@ -97,11 +101,13 @@ export default function AddExerciseScreen() {
       )}
       ItemSeparatorComponent={() => <View style={styles.separator} />}
     />
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  list: { flex: 1, backgroundColor: '#f5f5f5' },
+  container: { flex: 1, backgroundColor: '#f5f5f5' },
+  list: { flex: 1 },
 
   templateSection: {
     backgroundColor: '#fff',

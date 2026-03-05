@@ -8,6 +8,7 @@ import {
   View,
 } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 
 import { deleteTemplate, getTemplates, saveTemplates } from '@/src/lib/storage';
@@ -16,6 +17,7 @@ import DraggableList from '@/src/components/DraggableList';
 
 export default function TemplateListScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const [templates, setTemplates] = useState<WorkoutTemplate[]>([]);
 
   const load = useCallback(() => {
@@ -83,7 +85,7 @@ export default function TemplateListScreen() {
 
       {/* FAB */}
       <Pressable
-        style={styles.fab}
+        style={[styles.fab, { bottom: insets.bottom + 24 }]}
         onPress={() => router.push('/template/new')}
       >
         <FontAwesome name="plus" size={22} color="#fff" />
@@ -120,7 +122,6 @@ const styles = StyleSheet.create({
   fab: {
     position: 'absolute',
     right: 24,
-    bottom: 32,
     width: 56,
     height: 56,
     borderRadius: 28,

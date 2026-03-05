@@ -10,6 +10,7 @@ import {
   View,
 } from 'react-native';
 import { useFocusEffect } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 
 import {
@@ -21,6 +22,7 @@ import {
 import DraggableList from '@/src/components/DraggableList';
 
 export default function CategoryScreen() {
+  const insets = useSafeAreaInsets();
   const [categories, setCategories] = useState<string[]>([]);
   const [modalVisible, setModalVisible] = useState(false);
   const [editingName, setEditingName] = useState('');
@@ -129,7 +131,7 @@ export default function CategoryScreen() {
       </ScrollView>
 
       {/* FAB */}
-      <Pressable style={styles.fab} onPress={openAdd}>
+      <Pressable style={[styles.fab, { bottom: insets.bottom + 24 }]} onPress={openAdd}>
         <FontAwesome name="plus" size={22} color="#fff" />
       </Pressable>
 
@@ -192,7 +194,6 @@ const styles = StyleSheet.create({
   fab: {
     position: 'absolute',
     right: 24,
-    bottom: 32,
     width: 56,
     height: 56,
     borderRadius: 28,

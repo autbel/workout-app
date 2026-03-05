@@ -1,6 +1,7 @@
 import { useCallback, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 
 import { deleteExercise, getExercises, getSettings, saveExercises, DEFAULT_CATEGORY_ORDER } from '@/src/lib/storage';
@@ -40,6 +41,7 @@ function buildSections(exercises: Exercise[], categoryOrder: string[]): Section[
 
 export default function ExerciseListScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const [sections, setSections] = useState<Section[]>([]);
 
   const load = useCallback(async () => {
@@ -94,7 +96,7 @@ export default function ExerciseListScreen() {
       </ScrollView>
 
       {/* FAB */}
-      <Pressable style={styles.fab} onPress={() => router.push('/exercise/new' as never)}>
+      <Pressable style={[styles.fab, { bottom: insets.bottom + 24 }]} onPress={() => router.push('/exercise/new' as never)}>
         <FontAwesome name="plus" size={22} color="#fff" />
       </Pressable>
     </View>
@@ -156,7 +158,6 @@ const styles = StyleSheet.create({
   fab: {
     position: 'absolute',
     right: 24,
-    bottom: 32,
     width: 56,
     height: 56,
     borderRadius: 28,

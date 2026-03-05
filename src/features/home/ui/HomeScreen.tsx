@@ -1,9 +1,11 @@
 import { useCallback, useRef, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Dimensions, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useRouter } from 'expo-router';
-import { Calendar } from 'react-native-calendars';
+import { CalendarList } from 'react-native-calendars';
 import type { DateData } from 'react-native-calendars';
+
+const CALENDAR_WIDTH = Dimensions.get('window').width - 24;
 
 import { getSettings, getSessions } from '@/src/lib/storage';
 
@@ -27,7 +29,7 @@ function todayString(): string {
 export default function HomeScreen() {
   const router = useRouter();
   const [markedDates, setMarkedDates] = useState<MarkedDates>({});
-  const [calendarKey, setCalendarKey] = useState(0);
+  const calendarListRef = useRef<any>(null);
   const [maxWeights, setMaxWeights] = useState<Record<string, number>>({});
   const [maxDates, setMaxDates] = useState<Record<string, string>>({});
   const [unit, setUnit] = useState<'kg' | 'lb'>('kg');
@@ -40,7 +42,7 @@ export default function HomeScreen() {
       const fromWorkout = navigatingToWorkoutRef.current;
       navigatingToWorkoutRef.current = false;
       if (!fromWorkout) {
-        setCalendarKey((k) => k + 1);
+        calendarListRef.current?.scrollToMonth?.(today);
       }
       Promise.all([getSettings(), getSessions()]).then(([s, sessions]) => {
         const prEx = s.prExercises ?? DEFAULT_PR;
@@ -89,12 +91,16 @@ export default function HomeScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <Calendar
-        key={calendarKey}
-        style={styles.calendar}
+      <CalendarList
+        ref={calendarListRef}
+        horizontal
+        pagingEnabled
+        calendarWidth={CALENDAR_WIDTH}
+        calendarStyle={styles.calendarStyle}
+        style={styles.calendarList}
+        current={today}
         markedDates={markedDates}
         onDayPress={handleDayPress}
-        enableSwipeMonths
         theme={{
           todayTextColor: '#2563eb',
           arrowColor: '#2563eb',
@@ -141,9 +147,11 @@ export default function HomeScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f5f5f5' },
-  calendar: {
+  calendarList: { height: 350, flexGrow: 0 },
+  calendarStyle: {
     borderRadius: 12,
-    margin: 12,
+    marginHorizontal: 12,
+    backgroundColor: '#fff',
     shadowColor: '#000',
     shadowOpacity: 0.06,
     shadowRadius: 4,

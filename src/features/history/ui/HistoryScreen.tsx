@@ -1,25 +1,19 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useFocusEffect, useRouter } from 'expo-router';
-import { Calendar } from 'react-native-calendars';
-import type { DateData } from 'react-native-calendars';
+import { useFocusEffect } from 'expo-router';
 
-import { getExercises, getSessions, DEFAULT_CATEGORY_ORDER } from '@/src/lib/storage';
+import { getExercises, getSessions, getSettings, DEFAULT_CATEGORY_ORDER } from '@/src/lib/storage';
 import HistoryGraphView from './HistoryGraphView';
 import type { Exercise, WorkoutSession } from '@/src/types';
-
-type MarkedDates = Record<string, { marked: boolean; dotColor: string }>;
-type Mode = 'calendar' | 'graph';
 
 const BIG3 = 'Big3';
 const BIG3_EXERCISES = ['ベンチプレス', 'スクワット', 'デッドリフト'];
 
 /** 種目マスターからカテゴリ → 種目名[] のマップを構築（Big3を先頭に固定） */
-function buildCategoryExerciseMap(exercises: Exercise[]): Map<string, string[]> {
+function buildCategoryExerciseMap(exercises: Exercise[], categoryOrder: string[]): Map<string, string[]> {
   const map = new Map<string, string[]>([[BIG3, BIG3_EXERCISES]]);
-  // デフォルト順でカテゴリを初期化
-  for (const cat of DEFAULT_CATEGORY_ORDER) {
+  for (const cat of categoryOrder) {
     map.set(cat, []);
   }
   for (const ex of exercises) {
@@ -34,47 +28,29 @@ function buildCategoryExerciseMap(exercises: Exercise[]): Map<string, string[]> 
   return map;
 }
 
-function getMarkedDates(sessions: WorkoutSession[], exerciseName: string | null): MarkedDates {
-  const marks: MarkedDates = {};
-  for (const s of sessions) {
-    if (!s.finishedAt) continue;
-    if (exerciseName === null && s.exercises.length === 0) continue;
-    const hasExercise =
-      exerciseName === null || s.exercises.some((e) => e.exerciseName === exerciseName);
-    if (hasExercise) {
-      const d = new Date(s.startedAt);
-      const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-      marks[dateStr] = { marked: true, dotColor: '#2563eb' };
-    }
-  }
-  return marks;
-}
-
 export default function HistoryScreen() {
-  const router = useRouter();
-  const [mode, setMode] = useState<Mode>('calendar');
   const [sessions, setSessions] = useState<WorkoutSession[]>([]);
   const [exercises, setExercises] = useState<Exercise[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string>(BIG3);
   const [selectedExercise, setSelectedExercise] = useState<string | null>(null);
-  const [calendarKey, setCalendarKey] = useState(0);
-  const navigatingToWorkoutRef = useRef(false);
+  const [categoryOrder, setCategoryOrder] = useState<string[]>(DEFAULT_CATEGORY_ORDER);
+  const exerciseScrollRef = useRef<ScrollView>(null);
 
   useFocusEffect(
     useCallback(() => {
-      const fromWorkout = navigatingToWorkoutRef.current;
-      navigatingToWorkoutRef.current = false;
-
-      setMode('calendar');
-      if (!fromWorkout) {
-        setCalendarKey((k) => k + 1);
-      }
+      setSelectedCategory(BIG3);
+      setSelectedExercise(null);
+      exerciseScrollRef.current?.scrollTo({ x: 0, animated: false });
       getSessions().then(setSessions);
       getExercises().then(setExercises);
+      getSettings().then((s) => setCategoryOrder(s.categoryOrder ?? DEFAULT_CATEGORY_ORDER));
     }, []),
   );
 
-  const categoryExerciseMap = useMemo(() => buildCategoryExerciseMap(exercises), [exercises]);
+  const categoryExerciseMap = useMemo(
+    () => buildCategoryExerciseMap(exercises, categoryOrder),
+    [exercises, categoryOrder],
+  );
   const categories = useMemo(() => Array.from(categoryExerciseMap.keys()), [categoryExerciseMap]);
 
   const exercisesInCategory = useMemo(
@@ -82,19 +58,9 @@ export default function HistoryScreen() {
     [selectedCategory, categoryExerciseMap],
   );
 
-  const markedDates = useMemo(
-    () => getMarkedDates(sessions, selectedExercise),
-    [sessions, selectedExercise],
-  );
-
   const handleCategoryPress = (cat: string) => {
     setSelectedCategory(cat);
     setSelectedExercise(null);
-  };
-
-  const handleDayPress = (day: DateData) => {
-    navigatingToWorkoutRef.current = true;
-    router.push(`/workout/${day.dateString}` as never);
   };
 
   return (
@@ -120,6 +86,7 @@ export default function HistoryScreen() {
       {/* ─ 種目（横スクロール、選択部位でフィルタ） ─ */}
       <View style={styles.exerciseBar}>
         <ScrollView
+          ref={exerciseScrollRef}
           horizontal
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.exerciseRow}
@@ -146,51 +113,11 @@ export default function HistoryScreen() {
         </ScrollView>
       </View>
 
-      {/* ─ カレンダー/グラフ切り替え ─ */}
-      <View style={styles.segmentWrapper}>
-        <View style={styles.segment}>
-          <Pressable
-            style={[styles.segBtn, mode === 'calendar' && styles.segBtnActive]}
-            onPress={() => setMode('calendar')}
-          >
-            <Text style={[styles.segText, mode === 'calendar' && styles.segTextActive]}>
-              カレンダー
-            </Text>
-          </Pressable>
-          <Pressable
-            style={[styles.segBtn, mode === 'graph' && styles.segBtnActive]}
-            onPress={() => setMode('graph')}
-          >
-            <Text style={[styles.segText, mode === 'graph' && styles.segTextActive]}>
-              グラフ
-            </Text>
-          </Pressable>
-        </View>
-      </View>
-
-      {mode === 'calendar' ? (
-        <Calendar
-          key={calendarKey}
-          style={styles.calendar}
-          markedDates={markedDates}
-          onDayPress={handleDayPress}
-          theme={{
-            todayTextColor: '#2563eb',
-            arrowColor: '#2563eb',
-            dotColor: '#2563eb',
-            monthTextColor: '#1e293b',
-            textMonthFontWeight: '700',
-            textDayFontSize: 14,
-            textMonthFontSize: 16,
-          }}
-        />
-      ) : (
-        <HistoryGraphView
-          sessions={sessions}
-          selectedExercise={selectedExercise}
-          exercisesInCategory={exercisesInCategory}
-        />
-      )}
+      <HistoryGraphView
+        sessions={sessions}
+        selectedExercise={selectedExercise}
+        exercisesInCategory={exercisesInCategory}
+      />
     </SafeAreaView>
   );
 }
@@ -240,31 +167,4 @@ const styles = StyleSheet.create({
   exChipActive: { backgroundColor: '#dbeafe', borderColor: '#93c5fd' },
   exChipText: { fontSize: 13, color: '#6b7280', fontWeight: '500' },
   exChipTextActive: { color: '#1d4ed8', fontWeight: '700' },
-
-  segmentWrapper: { paddingHorizontal: 16, paddingVertical: 10 },
-  segment: {
-    flexDirection: 'row',
-    backgroundColor: '#e5e7eb',
-    borderRadius: 10,
-    padding: 3,
-  },
-  segBtn: {
-    flex: 1,
-    paddingVertical: 7,
-    alignItems: 'center',
-    borderRadius: 8,
-  },
-  segBtnActive: { backgroundColor: '#fff' },
-  segText: { fontSize: 14, fontWeight: '600', color: '#6b7280' },
-  segTextActive: { color: '#111827' },
-
-  calendar: {
-    borderRadius: 12,
-    marginHorizontal: 12,
-    shadowColor: '#000',
-    shadowOpacity: 0.06,
-    shadowRadius: 4,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 2,
-  },
 });

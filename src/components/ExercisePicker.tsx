@@ -89,10 +89,12 @@ export default function ExercisePicker({ visible, onSelect, onClose, alreadyAdde
       >
         {/* ヘッダー */}
         <View style={styles.header}>
-          <Text style={styles.headerTitle}>種目を選択</Text>
-          <Pressable onPress={onClose} hitSlop={12}>
-            <FontAwesome name="times" size={20} color="#555" />
+          <Pressable onPress={onClose} hitSlop={12} style={styles.backBtn}>
+            <FontAwesome name="chevron-left" size={16} color="#007AFF" />
+            <Text style={styles.backBtnText}>戻る</Text>
           </Pressable>
+          <Text style={styles.headerTitle}>種目を選択</Text>
+          <View style={styles.headerRight} />
         </View>
 
         {/* 種目リスト */}
@@ -163,13 +165,16 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
+    paddingHorizontal: 12,
+    paddingVertical: 14,
     backgroundColor: '#fff',
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: '#ddd',
   },
+  backBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, minWidth: 60 },
+  backBtnText: { color: '#007AFF', fontSize: 16 },
   headerTitle: { fontSize: 17, fontWeight: '700' },
+  headerRight: { minWidth: 60 },
 
   sectionHeader: {
     backgroundColor: '#f0f0f0',

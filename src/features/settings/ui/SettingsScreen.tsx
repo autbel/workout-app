@@ -9,7 +9,7 @@ import type { AppSettings } from '@/src/lib/storage';
 const DEFAULT: AppSettings = {
   unit: 'kg',
   recentSessionCount: 3,
-  timerSoundEnabled: true,
+  timerSoundEnabled: false,
   timerVibrationEnabled: true,
   categoryOrder: DEFAULT_CATEGORY_ORDER,
   prExercises: ['ベンチプレス', 'スクワット', 'デッドリフト'],

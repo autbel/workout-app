@@ -12,6 +12,7 @@ import {
   View,
 } from 'react-native';
 import { useFocusEffect, useLocalSearchParams, useNavigation, useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useKeepAwake } from 'expo-keep-awake';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 
@@ -282,7 +283,7 @@ function ExerciseCard({
       <View style={cardStyles.headerWrap}>
       <View style={cardStyles.header}>
         <View style={cardStyles.nameRow}>
-          <Text style={cardStyles.name}>{exercise.exerciseName}</Text>
+          <Text style={cardStyles.name} numberOfLines={1}>{exercise.exerciseName}</Text>
           <Pressable style={cardStyles.historyBtn} onPress={onNamePress} hitSlop={8}>
             <Text style={cardStyles.historyBtnText}>履歴</Text>
           </Pressable>
@@ -381,7 +382,7 @@ const cardStyles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
   },
-  name: { fontSize: 16, fontWeight: '700' },
+  name: { fontSize: 16, fontWeight: '700', flex: 1 },
   setHeader: { flexDirection: 'row', marginBottom: 4 },
   colLabel: { fontSize: 11, color: '#aaa', fontWeight: '600' },
   addSetBtn: {
@@ -454,6 +455,7 @@ const cardStyles = StyleSheet.create({
 
 export default function WorkoutScreen() {
   useKeepAwake();
+  const insets = useSafeAreaInsets();
   const { date } = useLocalSearchParams<{ date: string }>();
   const navigation = useNavigation();
   const router = useRouter();
@@ -763,7 +765,7 @@ export default function WorkoutScreen() {
 
       {/* FAB */}
       <Pressable
-        style={styles.fab}
+        style={[styles.fab, { bottom: insets.bottom + 24 }]}
         onPress={() => router.push('/workout/add-exercise' as never)}
       >
         <FontAwesome name="plus" size={22} color="#fff" />
@@ -798,7 +800,6 @@ const styles = StyleSheet.create({
   fab: {
     position: 'absolute',
     right: 20,
-    bottom: 80,
     width: 56,
     height: 56,
     borderRadius: 28,

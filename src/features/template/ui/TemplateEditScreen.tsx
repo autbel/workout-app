@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
   Alert,
   KeyboardAvoidingView,
@@ -10,12 +10,12 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { useLocalSearchParams, useNavigation, useRouter } from 'expo-router';
+import { useFocusEffect, useLocalSearchParams, useNavigation, useRouter } from 'expo-router';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 
 import { getTemplates, upsertTemplate } from '@/src/lib/storage';
 import { generateId } from '@/src/lib/id';
-import ExercisePicker from '@/src/components/ExercisePicker';
+import { useWorkoutStore } from '@/src/store/workoutStore';
 import DraggableList from '@/src/components/DraggableList';
 import type { Exercise, WorkoutTemplate } from '@/src/types';
 
@@ -27,9 +27,10 @@ export default function TemplateEditScreen() {
   const router = useRouter();
   const navigation = useNavigation();
 
+  const { pickedTemplateExercise, setPickedTemplateExercise } = useWorkoutStore();
+
   const [templateName, setTemplateName] = useState('');
   const [exercises, setExercises] = useState<DraftExercise[]>([]);
-  const [pickerVisible, setPickerVisible] = useState(false);
 
   useEffect(() => {
     navigation.setOptions({ title: isNew ? '新規メニュー' : 'メニューを編集' });
@@ -44,6 +45,14 @@ export default function TemplateEditScreen() {
       });
     }
   }, [id, isNew, navigation]);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (!pickedTemplateExercise) return;
+      setExercises((prev) => [...prev, pickedTemplateExercise]);
+      setPickedTemplateExercise(null);
+    }, [pickedTemplateExercise, setPickedTemplateExercise]),
+  );
 
   const removeExercise = (exId: string) => {
     setExercises((prev) => prev.filter((e) => e.id !== exId));
@@ -112,7 +121,7 @@ export default function TemplateEditScreen() {
             )}
           />
 
-          <Pressable style={styles.addExBtn} onPress={() => setPickerVisible(true)}>
+          <Pressable style={styles.addExBtn} onPress={() => router.push('/template/pick-exercise' as never)}>
             <FontAwesome name="plus" size={14} color="#2563eb" />
             <Text style={styles.addExText}>種目を追加</Text>
           </Pressable>
@@ -123,13 +132,6 @@ export default function TemplateEditScreen() {
           <Text style={styles.saveBtnText}>保存</Text>
         </Pressable>
       </ScrollView>
-
-      <ExercisePicker
-        visible={pickerVisible}
-        alreadyAdded={exercises.map((e) => e.id)}
-        onSelect={(picked) => setExercises((prev) => [...prev, { id: picked.id, name: picked.name }])}
-        onClose={() => setPickerVisible(false)}
-      />
     </KeyboardAvoidingView>
   );
 }

@@ -20,16 +20,14 @@ function epley1RM(weightKg: number, reps: number): number {
   return weightKg * (1 + reps / 30);
 }
 
-/** 日付からその週の日曜日を YYYY-MM-DD 文字列で返す */
-function getSundayKey(date: Date): string {
+/** 日付を YYYY-MM-DD 文字列で返す（日単位集計） */
+function getDayKey(date: Date): string {
   const d = new Date(date);
   d.setHours(0, 0, 0, 0);
-  const dow = d.getDay(); // 0=日, 1=月, ..., 6=土
-  d.setDate(d.getDate() - dow); // 日曜日に戻す
   return d.toISOString().slice(0, 10);
 }
 
-/** 種目名でフィルタして週単位の最大1RM・最大重量を返す */
+/** 種目名でフィルタして日単位の最大1RM・最大重量を返す */
 function buildChartData(
   sessions: WorkoutSession[],
   exerciseName: string,
@@ -43,7 +41,7 @@ function buildChartData(
   );
   if (relevant.length === 0) return [];
 
-  const byWeek = new Map<string, { rm: number | null; weight: number | null; date: Date }>();
+  const byDay = new Map<string, { rm: number | null; weight: number | null; date: Date }>();
 
   for (const session of sorted) {
     if (!session.finishedAt) continue;
@@ -51,8 +49,8 @@ function buildChartData(
     if (!entry) continue;
 
     const sessionDate = new Date(session.startedAt);
-    const weekKey     = getSundayKey(sessionDate);
-    const current     = byWeek.get(weekKey) ?? { rm: null, weight: null, date: sessionDate };
+    const dayKey      = getDayKey(sessionDate);
+    const current     = byDay.get(dayKey) ?? { rm: null, weight: null, date: sessionDate };
 
     for (const s of entry.sets) {
       if (s.weightKg > 0 && s.reps > 0) {
@@ -66,10 +64,10 @@ function buildChartData(
         }
       }
     }
-    byWeek.set(weekKey, current);
+    byDay.set(dayKey, current);
   }
 
-  return Array.from(byWeek.entries())
+  return Array.from(byDay.entries())
     .sort(([a], [b]) => a.localeCompare(b))
     .map(([, v]) => ({
       date:      v.date,
@@ -81,7 +79,7 @@ function buildChartData(
 function ChartHeader({ title, showLegend }: { title: string; showLegend: boolean }) {
   return (
     <View style={styles.chartHeader}>
-      <Text style={styles.exerciseName}>{title}</Text>
+      <Text style={styles.exerciseName} numberOfLines={1}>{title}</Text>
       {showLegend && (
         <View style={styles.legend}>
           <View style={styles.legendItem}>
@@ -210,7 +208,7 @@ const styles = StyleSheet.create({
     elevation:        2,
   },
   chartHeader:  { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 2 },
-  exerciseName: { fontSize: 13, fontWeight: '700', color: '#1e293b' },
+  exerciseName: { fontSize: 13, fontWeight: '700', color: '#1e293b', flex: 1, marginRight: 8 },
 
   legend:     { flexDirection: 'row', gap: 10 },
   legendItem: { flexDirection: 'row', alignItems: 'center', gap: 4 },

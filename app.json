@@ -18,7 +18,7 @@
     },
     "android": {
       "package": "com.personal.kintorenikki",
-      "versionCode": 1,
+      "versionCode": 2,
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
@@ -29,7 +29,7 @@
     },
     "web": {
       "bundler": "metro",
-      "output": "single-page",
+      "output": "static",
       "favicon": "./assets/images/favicon.png"
     },
     "plugins": [
@@ -44,6 +44,12 @@
         "projectId": "005a024e-a6d9-45b3-b424-af856812a725"
       }
     },
-    "owner": "autbel"
+    "owner": "autbel",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/005a024e-a6d9-45b3-b424-af856812a725"
+    }
   }
 }

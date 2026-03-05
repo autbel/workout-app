@@ -65,6 +65,7 @@ function RootLayoutNav() {
         <Stack.Screen name="modal" options={{ presentation: 'modal' }} />
         <Stack.Screen name="template/index" options={{ title: 'メニューの編集', headerBackTitle: '設定' }} />
         <Stack.Screen name="template/[id]" options={{ title: 'メニュー', headerBackTitle: 'メニューの編集' }} />
+        <Stack.Screen name="template/pick-exercise" options={{ title: '種目を選択', headerBackTitle: '戻る' }} />
         <Stack.Screen name="history/[id]" options={{ title: '履歴詳細', headerBackTitle: '履歴' }} />
         <Stack.Screen name="workout/[date]" options={{ title: '', headerBackTitle: '戻る' }} />
         <Stack.Screen name="workout/add-exercise" options={{ title: '種目を選択', headerBackTitle: '筋トレ' }} />

@@ -16,6 +16,9 @@ interface WorkoutStore {
   /** ExerciseHistoryScreen → WorkoutScreen へ渡すコピーセット */
   copiedSets: CopiedSets | null;
   setCopiedSets: (data: CopiedSets | null) => void;
+  /** TemplateExercisePickerScreen → TemplateEditScreen へ渡す選択種目 */
+  pickedTemplateExercise: { id: string; name: string } | null;
+  setPickedTemplateExercise: (ex: { id: string; name: string } | null) => void;
 }
 
 export const useWorkoutStore = create<WorkoutStore>((set) => ({
@@ -31,4 +34,6 @@ export const useWorkoutStore = create<WorkoutStore>((set) => ({
   clearPending: () => set({ pendingExercises: [], pendingTemplateId: null, pendingTemplateName: null }),
   copiedSets: null,
   setCopiedSets: (data) => set({ copiedSets: data }),
+  pickedTemplateExercise: null,
+  setPickedTemplateExercise: (ex) => set({ pickedTemplateExercise: ex }),
 }));

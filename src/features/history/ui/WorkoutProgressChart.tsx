@@ -150,7 +150,7 @@ export default function WorkoutProgressChart({ data, chartHeight = 200, xStart, 
   const todayX  = toX(rangeEnd);
   const rmPath  = buildPath(data, 'oneRM',     toX, toY);
   const wPath   = buildPath(data, 'maxWeight', toX, toY);
-  const fontSize = chartHeight < 150 ? 9 : 11;
+  const fontSize = 7;
 
   return (
     <View style={styles.chartRow}>

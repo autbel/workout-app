@@ -5,7 +5,7 @@ import { useFocusEffect, useRouter } from 'expo-router';
 import { CalendarList } from 'react-native-calendars';
 import type { DateData } from 'react-native-calendars';
 
-const CALENDAR_WIDTH = Dimensions.get('window').width - 24;
+const CALENDAR_WIDTH = Dimensions.get('window').width;
 
 import { getSettings, getSessions } from '@/src/lib/storage';
 
@@ -149,8 +149,6 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f5f5f5' },
   calendarList: { height: 350, flexGrow: 0 },
   calendarStyle: {
-    borderRadius: 12,
-    marginHorizontal: 12,
     backgroundColor: '#fff',
     shadowColor: '#000',
     shadowOpacity: 0.06,
@@ -161,6 +159,7 @@ const styles = StyleSheet.create({
   big3Section: {
     paddingHorizontal: 12,
     paddingBottom: 12,
+    marginTop: 16,
   },
   sectionTitle: {
     fontSize: 12,

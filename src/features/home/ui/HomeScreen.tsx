@@ -11,6 +11,11 @@ type MarkedDates = Record<string, { marked: boolean; dotColor: string }>;
 
 const DEFAULT_PR = ['ベンチプレス', 'スクワット', 'デッドリフト'];
 
+function formatPrDate(dateStr: string): string {
+  const d = new Date(dateStr);
+  return `${d.getFullYear()}/${String(d.getMonth() + 1).padStart(2, '0')}/${String(d.getDate()).padStart(2, '0')}`;
+}
+
 function todayString(): string {
   const d = new Date();
   const y = d.getFullYear();
@@ -24,6 +29,7 @@ export default function HomeScreen() {
   const [markedDates, setMarkedDates] = useState<MarkedDates>({});
   const [calendarKey, setCalendarKey] = useState(0);
   const [maxWeights, setMaxWeights] = useState<Record<string, number>>({});
+  const [maxDates, setMaxDates] = useState<Record<string, string>>({});
   const [unit, setUnit] = useState<'kg' | 'lb'>('kg');
   const [prExercises, setPrExercises] = useState<string[]>(DEFAULT_PR);
   const today = todayString();
@@ -43,6 +49,7 @@ export default function HomeScreen() {
 
         const marks: MarkedDates = {};
         const maxW: Record<string, number> = {};
+        const maxD: Record<string, string> = {};
 
         for (const session of sessions) {
           if (!session.finishedAt) continue;
@@ -51,6 +58,7 @@ export default function HomeScreen() {
               for (const set of e.sets) {
                 if (set.weightKg > (maxW[e.exerciseName] ?? 0)) {
                   maxW[e.exerciseName] = set.weightKg;
+                  maxD[e.exerciseName] = session.startedAt;
                 }
               }
             }
@@ -64,6 +72,7 @@ export default function HomeScreen() {
 
         setMarkedDates(marks);
         setMaxWeights(maxW);
+        setMaxDates(maxD);
       });
     }, []),
   );
@@ -85,6 +94,7 @@ export default function HomeScreen() {
         style={styles.calendar}
         markedDates={markedDates}
         onDayPress={handleDayPress}
+        enableSwipeMonths
         theme={{
           todayTextColor: '#2563eb',
           arrowColor: '#2563eb',
@@ -108,10 +118,12 @@ export default function HomeScreen() {
                 : unit === 'lb'
                   ? `${Math.round(kg * 2.20462 * 10) / 10} lb`
                   : `${kg} kg`;
+            const dateStr = maxDates[name] ? formatPrDate(maxDates[name]) : null;
             return (
               <View key={name} style={styles.big3Card}>
                 <Text style={styles.big3Name}>{name}</Text>
                 <Text style={styles.big3Value}>{display}</Text>
+                {dateStr && <Text style={styles.big3Date}>{dateStr}</Text>}
               </View>
             );
           })}
@@ -176,6 +188,11 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '700',
     color: '#1e293b',
+  },
+  big3Date: {
+    fontSize: 10,
+    color: '#9ca3af',
+    marginTop: 4,
   },
   footer: {
     padding: 16,

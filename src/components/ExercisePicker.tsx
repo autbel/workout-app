@@ -10,10 +10,11 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 
 import { generateId } from '@/src/lib/id';
-import { getExercises } from '@/src/lib/storage';
+import { DEFAULT_CATEGORY_ORDER, getExercises, getSettings } from '@/src/lib/storage';
 import type { Exercise } from '@/src/types';
 
 export interface PickedExercise {
@@ -33,13 +34,10 @@ interface Section {
   data: Exercise[];
 }
 
-const CATEGORY_ORDER = ['胸', '肩', '腕', '背中', '脚', '腹'];
-
-function buildSections(exercises: Exercise[]): Section[] {
+function buildSections(exercises: Exercise[], categoryOrder: string[]): Section[] {
   const map = new Map<string, Exercise[]>();
 
-  // カテゴリ順に並べる
-  for (const cat of CATEGORY_ORDER) {
+  for (const cat of categoryOrder) {
     map.set(cat, []);
   }
 
@@ -55,6 +53,7 @@ function buildSections(exercises: Exercise[]): Section[] {
 }
 
 export default function ExercisePicker({ visible, onSelect, onClose, alreadyAdded = [] }: Props) {
+  const insets = useSafeAreaInsets();
   const [sections, setSections] = useState<Section[]>([]);
   const [customMode, setCustomMode] = useState(false);
   const [customName, setCustomName] = useState('');
@@ -63,7 +62,10 @@ export default function ExercisePicker({ visible, onSelect, onClose, alreadyAdde
     if (visible) {
       setCustomMode(false);
       setCustomName('');
-      getExercises().then((all) => setSections(buildSections(all)));
+      Promise.all([getExercises(), getSettings()]).then(([all, settings]) => {
+        const order = settings.categoryOrder ?? DEFAULT_CATEGORY_ORDER;
+        setSections(buildSections(all, order));
+      });
     }
   }, [visible]);
 
@@ -98,6 +100,7 @@ export default function ExercisePicker({ visible, onSelect, onClose, alreadyAdde
           sections={sections}
           keyExtractor={(item) => item.id}
           stickySectionHeadersEnabled
+          contentContainerStyle={{ paddingBottom: insets.bottom + 16 }}
           renderSectionHeader={({ section }) => (
             <View style={styles.sectionHeader}>
               <Text style={styles.sectionTitle}>{section.title}</Text>

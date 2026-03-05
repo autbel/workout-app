@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Alert,
   KeyboardAvoidingView,
@@ -11,7 +11,8 @@ import {
   Vibration,
   View,
 } from 'react-native';
-import { useLocalSearchParams, useNavigation, useRouter } from 'expo-router';
+import { useFocusEffect, useLocalSearchParams, useNavigation, useRouter } from 'expo-router';
+import { useKeepAwake } from 'expo-keep-awake';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 
 import { generateId } from '@/src/lib/id';
@@ -42,6 +43,12 @@ function isValidDecimal(v: string) {
 }
 function isValidInt(v: string) {
   return v === '' || /^\d+$/.test(v);
+}
+
+/** Epley 式による推定1RM */
+function epley1RM(weightKg: number, reps: number): number {
+  if (reps === 1) return weightKg;
+  return Math.round(weightKg * (1 + reps / 30) * 10) / 10;
 }
 
 /** YYYY-MM-DD の日付文字列を当日 00:00:00 の ISO 文字列に変換 */
@@ -83,6 +90,10 @@ function SetRow({
   const weightError = weightTouched && !isValidDecimal(set.weightKg);
   const repsError = repsTouched && !isValidInt(set.reps);
 
+  const w = parseFloat(set.weightKg);
+  const r = parseInt(set.reps, 10);
+  const estimatedRM = (isFinite(w) && w > 0 && isFinite(r) && r > 0) ? epley1RM(w, r) : null;
+
   return (
     <View style={rowStyles.wrapper}>
       <View style={rowStyles.container}>
@@ -110,6 +121,9 @@ function SetRow({
         <Pressable onPress={onRemove} hitSlop={12} style={{ marginLeft: 4 }}>
           <FontAwesome name="times-circle" size={18} color="#bbb" />
         </Pressable>
+        {estimatedRM !== null && (
+          <Text style={rowStyles.rmText}>≈{estimatedRM}{unit}</Text>
+        )}
       </View>
       {weightError && <Text style={rowStyles.errorText}>重量は数値で入力してください</Text>}
       {repsError && <Text style={rowStyles.errorText}>回数は整数で入力してください</Text>}
@@ -120,7 +134,7 @@ function SetRow({
 const rowStyles = StyleSheet.create({
   wrapper: { marginBottom: 8 },
   container: { flexDirection: 'row', alignItems: 'center' },
-  index: { width: 20, fontSize: 13, color: '#aaa', textAlign: 'right', marginRight: 8 },
+  index: { width: 32, fontSize: 13, color: '#aaa', textAlign: 'right', marginRight: 8 },
   input: {
     width: 64,
     borderWidth: 1,
@@ -134,6 +148,7 @@ const rowStyles = StyleSheet.create({
   inputError: { borderColor: '#e53e3e', backgroundColor: '#fff5f5' },
   errorText: { fontSize: 11, color: '#e53e3e', marginLeft: 28, marginTop: 2 },
   unit: { fontSize: 13, color: '#888', marginHorizontal: 4 },
+  rmText: { flex: 1, fontSize: 12, color: '#6b7280', textAlign: 'right' },
 });
 
 // ─── ExerciseCard ─────────────────────────────────────────
@@ -151,6 +166,7 @@ function ExerciseCard({
   timerVibrationEnabled,
   onChange,
   onRemove,
+  onNamePress,
 }: {
   exercise: DraftExercise;
   unit: 'kg' | 'lb';
@@ -158,6 +174,7 @@ function ExerciseCard({
   timerVibrationEnabled: boolean;
   onChange: (updated: DraftExercise) => void;
   onRemove: () => void;
+  onNamePress: () => void;
 }) {
   // ── タイマー ──────────────────────────────────────────
   const [timerInput, setTimerInput] = useState(
@@ -166,12 +183,20 @@ function ExerciseCard({
   const [timerTouched, setTimerTouched] = useState(false);
   const [remainingSec, setRemainingSec] = useState<number | null>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const soundRef = useRef<any>(null);
   const isRunning = remainingSec !== null;
   const isFinished = remainingSec === 0;
   const timerError = timerTouched && (timerInput === '' || parseInt(timerInput, 10) <= 0);
 
   useEffect(() => {
-    return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
+    return () => {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+      if (soundRef.current) {
+        soundRef.current.stopAsync().catch(() => {});
+        soundRef.current.unloadAsync().catch(() => {});
+        soundRef.current = null;
+      }
+    };
   }, []);
 
   const playBeep = async () => {
@@ -180,11 +205,23 @@ function ExerciseCard({
       const { sound } = await Audio.Sound.createAsync(
         require('../../../../assets/sounds/beep.mp3')
       );
+      soundRef.current = sound;
       await sound.playAsync();
       sound.setOnPlaybackStatusUpdate((s) => {
-        if (s.isLoaded && s.didJustFinish) sound.unloadAsync();
+        if (s.isLoaded && s.didJustFinish) {
+          sound.unloadAsync();
+          soundRef.current = null;
+        }
       });
     } catch (_) {}
+  };
+
+  const stopSound = () => {
+    if (soundRef.current) {
+      soundRef.current.stopAsync().catch(() => {});
+      soundRef.current.unloadAsync().catch(() => {});
+      soundRef.current = null;
+    }
   };
 
   const startTimer = () => {
@@ -209,6 +246,7 @@ function ExerciseCard({
 
   const resetTimer = () => {
     if (intervalRef.current) { clearInterval(intervalRef.current); intervalRef.current = null; }
+    stopSound();
     setRemainingSec(null);
   };
 
@@ -243,7 +281,12 @@ function ExerciseCard({
     <View style={cardStyles.card}>
       <View style={cardStyles.headerWrap}>
       <View style={cardStyles.header}>
-        <Text style={cardStyles.name}>{exercise.exerciseName}</Text>
+        <View style={cardStyles.nameRow}>
+          <Text style={cardStyles.name}>{exercise.exerciseName}</Text>
+          <Pressable style={cardStyles.historyBtn} onPress={onNamePress} hitSlop={8}>
+            <Text style={cardStyles.historyBtnText}>履歴</Text>
+          </Pressable>
+        </View>
         <View style={cardStyles.timerRow}>
           <FontAwesome name="clock-o" size={13} color="#888" />
           {isRunning ? (
@@ -286,12 +329,15 @@ function ExerciseCard({
       </View>
 
       <View style={cardStyles.setHeader}>
-        <Text style={[cardStyles.colLabel, { width: 28 }]}>#</Text>
+        <Text style={[cardStyles.colLabel, { width: 40 }]}>セット</Text>
         <Text style={[cardStyles.colLabel, { width: 64, textAlign: 'center' }]}>
           重量 ({unit})
         </Text>
         <Text style={[cardStyles.colLabel, { width: 80, textAlign: 'center', marginLeft: 28 }]}>
           回数
+        </Text>
+        <Text style={[cardStyles.colLabel, { flex: 1, textAlign: 'right' }]}>
+          推定1RM
         </Text>
       </View>
 
@@ -383,11 +429,31 @@ const cardStyles = StyleSheet.create({
     justifyContent: 'center',
   },
   timerBtnDisabled: { backgroundColor: '#93c5fd' },
+  nameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    flexShrink: 1,
+    marginRight: 8,
+  },
+  historyBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f0f9ff',
+    borderWidth: 1,
+    borderColor: '#bae6fd',
+    borderRadius: 6,
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+    marginLeft: 8,
+  },
+  historyBtnText: { fontSize: 11, color: '#0284c7', fontWeight: '600' },
 });
 
 // ─── Main Screen ─────────────────────────────────────────
 
 export default function WorkoutScreen() {
+  useKeepAwake();
   const { date } = useLocalSearchParams<{ date: string }>();
   const navigation = useNavigation();
   const router = useRouter();
@@ -398,13 +464,33 @@ export default function WorkoutScreen() {
     recentSessionCount: 3,
     timerSoundEnabled: true,
     timerVibrationEnabled: true,
-    categoryOrder: ['背中', '脚', '腕', '肩', '腹', '胸'],
+    categoryOrder: ['胸', '脚', '背中', '肩', '腕', '腹筋'],
+    prExercises: ['ベンチプレス', 'スクワット', 'デッドリフト'],
   });
   const [existingSessionId, setExistingSessionId] = useState<string | null>(null);
   const [sessionTemplateId, setSessionTemplateId] = useState<string | null>(null);
   const [sessionTemplateName, setSessionTemplateName] = useState<string | null>(null);
 
-  const { pendingExercises, pendingTemplateId, pendingTemplateName, clearPending } = useWorkoutStore();
+  const { pendingExercises, pendingTemplateId, pendingTemplateName, clearPending, copiedSets, setCopiedSets } = useWorkoutStore();
+
+  // ExerciseHistoryScreen でコピーされたセットを該当種目に適用
+  useFocusEffect(
+    useCallback(() => {
+      if (!copiedSets) return;
+      const { exerciseName, sets } = copiedSets;
+      setCopiedSets(null);
+      setExercises((prev) =>
+        prev.map((ex) =>
+          ex.exerciseName === exerciseName
+            ? {
+                ...ex,
+                sets: sets.map((s) => ({ id: generateId(), reps: s.reps, weightKg: s.weightKg })),
+              }
+            : ex,
+        ),
+      );
+    }, [copiedSets, setCopiedSets]),
+  );
 
   // ヘッダータイトル
   useEffect(() => {
@@ -451,18 +537,21 @@ export default function WorkoutScreen() {
     clearPending();
 
     getSessions().then((allSessions) => {
-      // finishedAt があり、かつ当日でないセッションを過去履歴とする
+      // finishedAt があり、かつ入力日より前のセッションを過去履歴とする
       const pastSessions = allSessions.filter(
-        (s) => s.finishedAt != null && (!date || !sessionMatchesDate(s, date)),
+        (s) => s.finishedAt != null && (!date || sessionToLocalDate(s) < date),
       );
+
+      // 単独追加用：テンプレートなしのセッションのみ
+      const standaloneSessions = pastSessions.filter((s) => !s.templateId);
 
       const defaultSets: Record<string, DraftSet[]> = {};
       const defaultTimers: Record<string, number | undefined> = {};
 
-      // exerciseId または exerciseName で直近エントリを検索
+      // exerciseId または exerciseName で直近エントリを検索（単独セッションのみ）
       // 優先順位: ①日付（新しい順）②配列末尾（後から追加）
       const findEntry = (exId: string, exName: string): ExerciseEntry | null => {
-        const found = pastSessions
+        const found = standaloneSessions
           .flatMap((s) => s.exercises.map((e) => ({ s, e })))
           .filter(({ e }) => e.exerciseId === exId || e.exerciseName === exName)
           .sort((a, b) => {
@@ -642,9 +731,9 @@ export default function WorkoutScreen() {
   return (
     <KeyboardAvoidingView
       style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         {exercises.length === 0 && (
           <View style={styles.emptyCard}>
             <FontAwesome name="plus-circle" size={36} color="#ddd" style={{ marginBottom: 12 }} />
@@ -662,6 +751,7 @@ export default function WorkoutScreen() {
             timerVibrationEnabled={settings.timerVibrationEnabled}
             onChange={(updated) => updateExercise(idx, updated)}
             onRemove={() => removeExercise(idx)}
+            onNamePress={() => router.push(`/exercise-history/${encodeURIComponent(ex.exerciseName)}` as never)}
           />
         ))}
 
@@ -708,7 +798,7 @@ const styles = StyleSheet.create({
   fab: {
     position: 'absolute',
     right: 20,
-    bottom: 32,
+    bottom: 80,
     width: 56,
     height: 56,
     borderRadius: 28,

@@ -54,21 +54,20 @@ export function computeYAxisTicks(values: number[]): {
   return { ticks, yMin: 0, yMax: ticks[5], step };
 }
 
-export function computeWeeklyMondays(start: Date, end: Date): Date[] {
-  // 最初の日付の週の月曜（0=日, 1=月, ..., 6=土）
+export function computeWeeklySundays(start: Date, end: Date): Date[] {
+  // 最初の日付の週の日曜（0=日, 1=月, ..., 6=土）
   const dow          = start.getDay();
-  const daysToMonday = dow === 0 ? 6 : dow - 1;
   const cur          = new Date(start);
-  cur.setDate(cur.getDate() - daysToMonday);
+  cur.setDate(cur.getDate() - dow); // 日曜に戻す
   cur.setHours(0, 0, 0, 0);
 
-  const mondays: Date[] = [];
+  const sundays: Date[] = [];
   while (cur <= end) {
-    mondays.push(new Date(cur));
+    sundays.push(new Date(cur));
     cur.setDate(cur.getDate() + 7);
   }
-  mondays.push(new Date(cur)); // trailing: end の翌週月曜
-  return mondays;
+  sundays.push(new Date(cur)); // trailing: end の翌週日曜
+  return sundays;
 }
 
 function formatTickLabel(value: number, step: number): string {
@@ -129,21 +128,21 @@ export default function WorkoutProgressChart({ data, chartHeight = 200, xStart, 
     .filter((v): v is number => v != null);
   const { ticks, yMin, yMax, step } = computeYAxisTicks(allValues);
 
-  // X軸（月曜グリッド）― xStart/xEnd が指定された場合はそれを優先
-  const dateDates  = data.map((d) => d.date);
-  const rangeStart = xStart ?? new Date(Math.min(...dateDates.map((d) => d.getTime())));
-  const rangeEnd   = xEnd   ?? new Date(Math.max(...dateDates.map((d) => d.getTime())));
-  const mondays    = computeWeeklyMondays(rangeStart, rangeEnd);
-  const firstMonday = mondays[0];
+  // X軸（日曜グリッド）― xStart/xEnd が指定された場合はそれを優先
+  const dateDates   = data.map((d) => d.date);
+  const rangeStart  = xStart ?? new Date(Math.min(...dateDates.map((d) => d.getTime())));
+  const rangeEnd    = xEnd   ?? new Date(Math.max(...dateDates.map((d) => d.getTime())));
+  const sundays     = computeWeeklySundays(rangeStart, rangeEnd);
+  const firstSunday = sundays[0];
 
   // 右端 = 今日（rangeEnd）をプロット右端に固定
-  const totalDays = Math.max(14, Math.round((rangeEnd.getTime() - firstMonday.getTime()) / 86400000));
+  const totalDays = Math.max(14, Math.round((rangeEnd.getTime() - firstSunday.getTime()) / 86400000));
   const plotWidth = totalDays * DAY_PX;
   const svgHeight = MARGIN_TOP + chartHeight + MARGIN_BOTTOM;
 
   // 座標変換（スクロール領域内: MARGIN_LEFT は含まない）
   const toX = (date: Date): number =>
-    ((date.getTime() - firstMonday.getTime()) / 86400000) * DAY_PX;
+    ((date.getTime() - firstSunday.getTime()) / 86400000) * DAY_PX;
 
   const toY = (value: number): number =>
     MARGIN_TOP + chartHeight * (1 - (value - yMin) / (yMax - yMin));
@@ -192,14 +191,14 @@ export default function WorkoutProgressChart({ data, chartHeight = 200, xStart, 
             );
           })}
 
-          {/* ② 縦グリッド線（月曜）+ X軸ラベル */}
-          {mondays.slice(0, -1).map((monday, idx) => {
-            const px = toX(monday);
+          {/* ② 縦グリッド線（日曜）+ X軸ラベル */}
+          {sundays.slice(0, -1).map((sunday, idx) => {
+            const px = toX(sunday);
             if (px > plotWidth) return null;
-            const prev     = idx > 0 ? mondays[idx - 1] : null;
-            const showYear = prev === null || monday.getFullYear() !== prev.getFullYear();
+            const prev     = idx > 0 ? sundays[idx - 1] : null;
+            const showYear = prev === null || sunday.getFullYear() !== prev.getFullYear();
             return (
-              <Fragment key={`v-${monday.getTime()}`}>
+              <Fragment key={`v-${sunday.getTime()}`}>
                 <Line
                   x1={px} y1={MARGIN_TOP}
                   x2={px} y2={MARGIN_TOP + chartHeight}
@@ -209,7 +208,7 @@ export default function WorkoutProgressChart({ data, chartHeight = 200, xStart, 
                   x={px} y={MARGIN_TOP + chartHeight + 19}
                   textAnchor="middle" fontSize={9} fill="#888"
                 >
-                  {formatDateLabel(monday, showYear)}
+                  {formatDateLabel(sunday, showYear)}
                 </SvgText>
               </Fragment>
             );

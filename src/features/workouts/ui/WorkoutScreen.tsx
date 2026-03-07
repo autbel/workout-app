@@ -13,6 +13,7 @@ import {
   View,
 } from 'react-native';
 import { useFocusEffect, useLocalSearchParams, useNavigation, useRouter } from 'expo-router';
+import { useHeaderHeight } from '@react-navigation/elements';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useKeepAwake } from 'expo-keep-awake';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
@@ -470,6 +471,7 @@ export default function WorkoutScreen() {
     prExercises: ['ベンチプレス', 'スクワット', 'デッドリフト'],
   });
   const insets = useSafeAreaInsets();
+  const headerHeight = useHeaderHeight();
   const [existingSessionId, setExistingSessionId] = useState<string | null>(null);
   const [sessionTemplateId, setSessionTemplateId] = useState<string | null>(null);
   const [sessionTemplateName, setSessionTemplateName] = useState<string | null>(null);
@@ -743,7 +745,8 @@ export default function WorkoutScreen() {
   return (
     <KeyboardAvoidingView
       style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      behavior="padding"
+      keyboardVerticalOffset={headerHeight}
     >
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         {exercises.length === 0 && (
@@ -768,7 +771,7 @@ export default function WorkoutScreen() {
         ))}
       </ScrollView>
 
-      <View style={styles.footer}>
+      <View style={[styles.footer, { paddingBottom: insets.bottom + 12 }]}>
         <Pressable style={styles.saveBtn} onPress={handleSave}>
           <Text style={styles.saveBtnText}>完了</Text>
         </Pressable>
@@ -776,7 +779,7 @@ export default function WorkoutScreen() {
 
       {/* FAB */}
       <Pressable
-        style={[styles.fab, { bottom: keyboardOffset > 0 ? keyboardOffset + 16 : insets.bottom + 50 }]}
+        style={[styles.fab, { bottom: keyboardOffset > 0 ? keyboardOffset + 16 : insets.bottom + 80 }]}
         onPress={() => router.push('/workout/add-exercise' as never)}
       >
         <FontAwesome name="plus" size={22} color="#fff" />

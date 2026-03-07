@@ -21,13 +21,19 @@ export interface AppSettings {
   recentSessionCount: number; // Home に表示する直近セッション数（デフォルト3, 最大5）
   timerSoundEnabled: boolean;
   timerVibrationEnabled: boolean;
+  categoryOrder: string[]; // AddExerciseScreen での種目カテゴリ表示順
+  prExercises: string[];   // ホーム画面の自己記録セクションに表示する種目名（最大3）
 }
+
+export const DEFAULT_CATEGORY_ORDER = ['胸', '脚', '背中', '肩', '腕', '腹筋'];
 
 const DEFAULT_SETTINGS: AppSettings = {
   unit: 'kg',
   recentSessionCount: 3,
-  timerSoundEnabled: true,
+  timerSoundEnabled: false,
   timerVibrationEnabled: true,
+  categoryOrder: DEFAULT_CATEGORY_ORDER,
+  prExercises: ['ベンチプレス', 'スクワット', 'デッドリフト'],
 };
 
 // ─── Generic helpers ─────────────────────────────────────
@@ -55,17 +61,75 @@ export async function saveExercises(exercises: Exercise[]): Promise<void> {
 export async function upsertExercise(exercise: Exercise): Promise<void> {
   const all = await getExercises();
   const idx = all.findIndex((e) => e.id === exercise.id);
+  const oldName = idx >= 0 ? all[idx].name : null;
+  const nameChanged = oldName !== null && oldName !== exercise.name;
+
   if (idx >= 0) {
     all[idx] = exercise;
   } else {
     all.push(exercise);
   }
   await saveExercises(all);
+
+  // 種目名が変更された場合、テンプレート・prExercises・sessions を連動更新
+  if (nameChanged && oldName) {
+    const newName = exercise.name;
+    const [templates, settings, sessions] = await Promise.all([
+      getTemplates(),
+      getSettings(),
+      getSessions(),
+    ]);
+
+    // テンプレート内の種目名を更新
+    const updatedTemplates = templates.map((t) => ({
+      ...t,
+      exercises: t.exercises.map((e) =>
+        e.name === oldName ? { ...e, name: newName } : e,
+      ),
+    }));
+
+    // prExercises の種目名を更新
+    const updatedPrExercises = settings.prExercises.map((n) =>
+      n === oldName ? newName : n,
+    );
+
+    // sessions の exerciseName を更新（reps/weightKg/completedAt は変更しない）
+    const updatedSessions = sessions.map((s) => ({
+      ...s,
+      exercises: s.exercises.map((e) =>
+        e.exerciseName === oldName ? { ...e, exerciseName: newName } : e,
+      ),
+    }));
+
+    await Promise.all([
+      saveTemplates(updatedTemplates),
+      patchSettings({ prExercises: updatedPrExercises }),
+      saveSessions(updatedSessions),
+    ]);
+  }
 }
 
 export async function deleteExercise(id: string): Promise<void> {
   const all = await getExercises();
+  const deleted = all.find((e) => e.id === id);
   await saveExercises(all.filter((e) => e.id !== id));
+
+  // テンプレートから該当種目を除去
+  const templates = await getTemplates();
+  const updatedTemplates = templates.map((t) => ({
+    ...t,
+    exercises: t.exercises.filter((e) => e.id !== id),
+  }));
+  await saveTemplates(updatedTemplates);
+
+  // prExercises から該当種目名を除去
+  if (deleted) {
+    const settings = await getSettings();
+    const updatedPr = settings.prExercises.filter((n) => n !== deleted.name);
+    if (updatedPr.length !== settings.prExercises.length) {
+      await patchSettings({ prExercises: updatedPr });
+    }
+  }
 }
 
 // ─── Templates ───────────────────────────────────────────
@@ -123,10 +187,36 @@ export async function getRecentSessions(count: number): Promise<WorkoutSession[]
     .slice(0, count);
 }
 
+export async function deduplicateSessions(): Promise<void> {
+  const all = await getSessions();
+
+  const latestByDate = new Map<string, WorkoutSession>();
+  const unfinished: WorkoutSession[] = [];
+
+  for (const s of all) {
+    if (!s.finishedAt) {
+      unfinished.push(s);
+      continue;
+    }
+    const d = new Date(s.startedAt);
+    const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    const existing = latestByDate.get(dateStr);
+    if (!existing || s.finishedAt > existing.finishedAt!) {
+      latestByDate.set(dateStr, s);
+    }
+  }
+
+  const cleaned = [...latestByDate.values(), ...unfinished];
+  if (cleaned.length < all.length) {
+    await saveSessions(cleaned);
+  }
+}
+
 // ─── Settings ────────────────────────────────────────────
 
 export async function getSettings(): Promise<AppSettings> {
-  return (await getJson<AppSettings>('settings')) ?? DEFAULT_SETTINGS;
+  const stored = await getJson<Partial<AppSettings>>('settings');
+  return stored ? { ...DEFAULT_SETTINGS, ...stored } : DEFAULT_SETTINGS;
 }
 
 export async function saveSettings(settings: AppSettings): Promise<void> {
@@ -138,4 +228,24 @@ export async function patchSettings(patch: Partial<AppSettings>): Promise<AppSet
   const updated = { ...current, ...patch };
   await saveSettings(updated);
   return updated;
+}
+
+// ─── Category helpers ─────────────────────────────────────
+
+export async function renameCategory(oldName: string, newName: string): Promise<void> {
+  const [settings, exercises] = await Promise.all([getSettings(), getExercises()]);
+  const newOrder = settings.categoryOrder.map((c) => (c === oldName ? newName : c));
+  const newExercises = exercises.map((e) =>
+    e.category === oldName ? { ...e, category: newName } : e,
+  );
+  await Promise.all([patchSettings({ categoryOrder: newOrder }), saveExercises(newExercises)]);
+}
+
+export async function deleteCategory(name: string): Promise<void> {
+  const [settings, exercises] = await Promise.all([getSettings(), getExercises()]);
+  const newOrder = settings.categoryOrder.filter((c) => c !== name);
+  const newExercises = exercises.map((e) =>
+    e.category === name ? { ...e, category: 'その他' } : e,
+  );
+  await Promise.all([patchSettings({ categoryOrder: newOrder }), saveExercises(newExercises)]);
 }

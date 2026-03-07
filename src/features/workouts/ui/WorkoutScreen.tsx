@@ -743,48 +743,61 @@ export default function WorkoutScreen() {
   };
 
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior="padding"
-      keyboardVerticalOffset={headerHeight}
-    >
-      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-        {exercises.length === 0 && (
-          <View style={styles.emptyCard}>
-            <FontAwesome name="plus-circle" size={36} color="#ddd" style={{ marginBottom: 12 }} />
-            <Text style={styles.emptyText}>種目がありません</Text>
-            <Text style={styles.emptyHint}>右下の ＋ ボタンで種目を追加</Text>
-          </View>
-        )}
+    <View style={styles.container}>
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior="padding"
+        keyboardVerticalOffset={headerHeight}
+      >
+        <ScrollView
+          contentContainerStyle={[styles.content, { paddingBottom: 100 }]}
+          keyboardShouldPersistTaps="handled"
+        >
+          {exercises.length === 0 && (
+            <View style={styles.emptyCard}>
+              <FontAwesome name="plus-circle" size={36} color="#ddd" style={{ marginBottom: 12 }} />
+              <Text style={styles.emptyText}>種目がありません</Text>
+              <Text style={styles.emptyHint}>右下の ＋ ボタンで種目を追加</Text>
+            </View>
+          )}
 
-        {exercises.map((ex, idx) => (
-          <ExerciseCard
-            key={`${ex.exerciseId}-${idx}`}
-            exercise={ex}
-            unit={settings.unit}
-            timerSoundEnabled={settings.timerSoundEnabled}
-            timerVibrationEnabled={settings.timerVibrationEnabled}
-            onChange={(updated) => updateExercise(idx, updated)}
-            onRemove={() => removeExercise(idx)}
-            onNamePress={() => router.push(`/exercise-history/${encodeURIComponent(ex.exerciseName)}` as never)}
-          />
-        ))}
-      </ScrollView>
+          {exercises.map((ex, idx) => (
+            <ExerciseCard
+              key={`${ex.exerciseId}-${idx}`}
+              exercise={ex}
+              unit={settings.unit}
+              timerSoundEnabled={settings.timerSoundEnabled}
+              timerVibrationEnabled={settings.timerVibrationEnabled}
+              onChange={(updated) => updateExercise(idx, updated)}
+              onRemove={() => removeExercise(idx)}
+              onNamePress={() => router.push(`/exercise-history/${encodeURIComponent(ex.exerciseName)}` as never)}
+            />
+          ))}
+        </ScrollView>
+      </KeyboardAvoidingView>
 
-      <View style={[styles.footer, { paddingBottom: insets.bottom + 12 }]}>
+      {/* 完了ボタン: KAV の外で absolute 配置、keyboardOffset で移動 */}
+      <View style={[styles.footer, {
+        position: 'absolute',
+        left: 0, right: 0,
+        bottom: keyboardOffset,
+        paddingBottom: keyboardOffset > 0 ? 8 : insets.bottom + 8,
+      }]}>
         <Pressable style={styles.saveBtn} onPress={handleSave}>
           <Text style={styles.saveBtnText}>完了</Text>
         </Pressable>
       </View>
 
-      {/* FAB */}
+      {/* FAB: KAV の外で absolute 配置 */}
       <Pressable
-        style={[styles.fab, { bottom: keyboardOffset > 0 ? keyboardOffset + 16 : insets.bottom + 80 }]}
+        style={[styles.fab, {
+          bottom: keyboardOffset > 0 ? keyboardOffset + 80 : insets.bottom + 80,
+        }]}
         onPress={() => router.push('/workout/add-exercise' as never)}
       >
         <FontAwesome name="plus" size={22} color="#fff" />
       </Pressable>
-    </KeyboardAvoidingView>
+    </View>
   );
 }
 

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import {
+  Alert,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -40,11 +41,21 @@ export default function ExerciseEditScreen() {
   }, [id, isNew]);
 
   const handleSave = async () => {
-    if (!name.trim()) return;
+    const trimmed = name.trim();
+    if (!trimmed) return;
+
+    // 重複チェック（編集時は自分自身を除外）
+    const all = await getExercises();
+    const isDuplicate = all.some((e) => e.name === trimmed && e.id !== id);
+    if (isDuplicate) {
+      Alert.alert('エラー', 'その種目名はすでに存在します');
+      return;
+    }
+
     await upsertExercise({
       ...(original ?? { timerPresets: [] }),
       id: isNew ? Date.now().toString() : id,
-      name: name.trim(),
+      name: trimmed,
       category,
     });
     router.back();

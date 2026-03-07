@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Alert,
+  Keyboard,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -455,7 +456,6 @@ const cardStyles = StyleSheet.create({
 
 export default function WorkoutScreen() {
   useKeepAwake();
-  const insets = useSafeAreaInsets();
   const { date } = useLocalSearchParams<{ date: string }>();
   const navigation = useNavigation();
   const router = useRouter();
@@ -469,9 +469,19 @@ export default function WorkoutScreen() {
     categoryOrder: ['胸', '脚', '背中', '肩', '腕', '腹筋'],
     prExercises: ['ベンチプレス', 'スクワット', 'デッドリフト'],
   });
+  const insets = useSafeAreaInsets();
   const [existingSessionId, setExistingSessionId] = useState<string | null>(null);
   const [sessionTemplateId, setSessionTemplateId] = useState<string | null>(null);
   const [sessionTemplateName, setSessionTemplateName] = useState<string | null>(null);
+  const [keyboardOffset, setKeyboardOffset] = useState(0);
+
+  useEffect(() => {
+    const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+    const show = Keyboard.addListener(showEvent, (e) => setKeyboardOffset(e.endCoordinates.height));
+    const hide = Keyboard.addListener(hideEvent, () => setKeyboardOffset(0));
+    return () => { show.remove(); hide.remove(); };
+  }, []);
 
   const { pendingExercises, pendingTemplateId, pendingTemplateName, clearPending, copiedSets, setCopiedSets } = useWorkoutStore();
 
@@ -498,7 +508,7 @@ export default function WorkoutScreen() {
   useEffect(() => {
     if (date) {
       const [year, month, day] = date.split('-');
-      navigation.setOptions({ title: `${year}/${month}/${day}` });
+      navigation.setOptions({ title: `${year}.${month}.${day}` });
     }
   }, [date, navigation]);
 
@@ -756,16 +766,17 @@ export default function WorkoutScreen() {
             onNamePress={() => router.push(`/exercise-history/${encodeURIComponent(ex.exerciseName)}` as never)}
           />
         ))}
+      </ScrollView>
 
-        {/* 完了ボタン */}
+      <View style={styles.footer}>
         <Pressable style={styles.saveBtn} onPress={handleSave}>
           <Text style={styles.saveBtnText}>完了</Text>
         </Pressable>
-      </ScrollView>
+      </View>
 
       {/* FAB */}
       <Pressable
-        style={[styles.fab, { bottom: insets.bottom + 24 }]}
+        style={[styles.fab, { bottom: keyboardOffset > 0 ? keyboardOffset + 16 : insets.bottom + 50 }]}
         onPress={() => router.push('/workout/add-exercise' as never)}
       >
         <FontAwesome name="plus" size={22} color="#fff" />
@@ -776,7 +787,8 @@ export default function WorkoutScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f5f5f5' },
-  content: { padding: 16, paddingBottom: 100 },
+  content: { padding: 16, paddingBottom: 16 },
+  footer: { paddingHorizontal: 16, paddingTop: 8, paddingBottom: 12 },
 
   emptyCard: {
     backgroundColor: '#fff',
@@ -793,7 +805,6 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     paddingVertical: 16,
     alignItems: 'center',
-    marginTop: 8,
   },
   saveBtnText: { color: '#fff', fontSize: 16, fontWeight: '700' },
 

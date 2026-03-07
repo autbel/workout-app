@@ -116,7 +116,7 @@ function ExerciseChart({
   return (
     <View style={styles.compactChartContainer}>
       <ChartHeader title={exerciseName} showLegend={chartData.length >= 2} />
-      <WorkoutProgressChart data={chartData} chartHeight={110} xStart={xStart} xEnd={xEnd} />
+      <WorkoutProgressChart data={chartData} chartHeight={120} xStart={xStart} xEnd={xEnd} />
     </View>
   );
 }
@@ -151,7 +151,7 @@ export default function HistoryGraphView({
       <View style={styles.container}>
         <View style={styles.chartContainer}>
           <ChartHeader title={selectedExercise} showLegend={singleData.length >= 2} />
-          <WorkoutProgressChart data={singleData} chartHeight={260} xStart={globalMinDate} xEnd={today} />
+          <WorkoutProgressChart data={singleData} chartHeight={240} xStart={globalMinDate} xEnd={today} />
         </View>
       </View>
     );

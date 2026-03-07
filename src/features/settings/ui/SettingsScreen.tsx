@@ -2,6 +2,9 @@ import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
+import FontAwesome5 from '@expo/vector-icons/FontAwesome5';
+import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
+import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 
 import { DEFAULT_CATEGORY_ORDER, getSettings, patchSettings } from '@/src/lib/storage';
 import type { AppSettings } from '@/src/lib/storage';
@@ -36,21 +39,21 @@ export default function SettingsScreen() {
 
   return (
     <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
-      {/* ─── コンテンツ ─── */}
-      <Text style={styles.sectionTitle}>コンテンツ</Text>
+      {/* ─── 管理 ─── */}
+      <Text style={styles.sectionTitle}>管理</Text>
       <View style={styles.card}>
         <Pressable style={[styles.row, styles.rowBorder]} onPress={() => router.push('/category' as never)}>
-          <FontAwesome name="tag" size={18} color="#2563eb" style={styles.icon} />
+          <MaterialIcons name="accessibility-new" size={24} color="#2563eb" style={styles.icon} />
           <Text style={styles.rowLabel}>部位の編集</Text>
           <FontAwesome name="chevron-right" size={14} color="#bbb" />
         </Pressable>
         <Pressable style={[styles.row, styles.rowBorder]} onPress={() => router.push('/exercise' as never)}>
-          <FontAwesome name="heartbeat" size={18} color="#2563eb" style={styles.icon} />
+          <FontAwesome5 name="dumbbell" size={16} color="#2563eb" style={styles.icon} />
           <Text style={styles.rowLabel}>種目の編集</Text>
           <FontAwesome name="chevron-right" size={14} color="#bbb" />
         </Pressable>
         <Pressable style={[styles.row, styles.rowBorder]} onPress={() => router.push('/template' as never)}>
-          <FontAwesome name="list-ul" size={18} color="#2563eb" style={styles.icon} />
+          <FontAwesome name="clipboard" size={18} color="#2563eb" style={styles.icon} />
           <Text style={styles.rowLabel}>メニューの編集</Text>
           <FontAwesome name="chevron-right" size={14} color="#bbb" />
         </Pressable>
@@ -128,7 +131,7 @@ const styles = StyleSheet.create({
   card: { backgroundColor: '#fff', borderRadius: 12, overflow: 'hidden', marginBottom: 16 },
   row: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 14 },
   rowBorder: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#eee' },
-  icon: { width: 26, marginRight: 12 },
+  icon: { width: 26, marginRight: 12, textAlign: 'center' },
   rowLabel: { flex: 1, fontSize: 15 },
 
   unitToggle: { flexDirection: 'row', gap: 4 },

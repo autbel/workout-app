@@ -33,7 +33,10 @@ export default function TemplateEditScreen() {
   const [exercises, setExercises] = useState<DraftExercise[]>([]);
 
   useEffect(() => {
-    navigation.setOptions({ title: isNew ? '新規メニュー' : 'メニューを編集' });
+    navigation.setOptions({
+      title: isNew ? 'メニューを追加' : 'メニューを編集',
+      headerBackTitle: 'メニューの編集',
+    });
 
     if (!isNew) {
       getTemplates().then((all) => {
@@ -66,6 +69,14 @@ export default function TemplateEditScreen() {
     }
     if (exercises.length === 0) {
       Alert.alert('エラー', '種目を1つ以上追加してください');
+      return;
+    }
+
+    // 重複チェック（編集時は自分自身を除外）
+    const all = await getTemplates();
+    const isDuplicate = all.some((t) => t.name === trimmedName && t.id !== id);
+    if (isDuplicate) {
+      Alert.alert('エラー', 'そのメニュー名はすでに存在します');
       return;
     }
 

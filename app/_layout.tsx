@@ -73,6 +73,8 @@ function RootLayoutNav() {
         <Stack.Screen name="exercise/[id]" options={{ title: '種目を編集', headerBackTitle: '種目の編集' }} />
         <Stack.Screen name="pr-exercises/index" options={{ title: '自己記録の編集', headerBackTitle: '設定' }} />
         <Stack.Screen name="category/index" options={{ title: '部位の編集', headerBackTitle: '設定' }} />
+        <Stack.Screen name="category/add" options={{ title: '部位を追加', headerBackTitle: '部位の編集' }} />
+        <Stack.Screen name="category/[name]" options={{ title: '部位を編集', headerBackTitle: '部位の編集' }} />
         <Stack.Screen name="exercise-history/[name]" options={{ title: '過去の記録', headerBackTitle: '戻る' }} />
       </Stack>
     </ThemeProvider>

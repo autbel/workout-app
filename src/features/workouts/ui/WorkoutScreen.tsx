@@ -13,7 +13,6 @@ import {
   View,
 } from 'react-native';
 import { useFocusEffect, useLocalSearchParams, useNavigation, useRouter } from 'expo-router';
-import { useHeaderHeight } from '@react-navigation/elements';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useKeepAwake } from 'expo-keep-awake';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
@@ -471,7 +470,6 @@ export default function WorkoutScreen() {
     prExercises: ['ベンチプレス', 'スクワット', 'デッドリフト'],
   });
   const insets = useSafeAreaInsets();
-  const headerHeight = useHeaderHeight();
   const [existingSessionId, setExistingSessionId] = useState<string | null>(null);
   const [sessionTemplateId, setSessionTemplateId] = useState<string | null>(null);
   const [sessionTemplateName, setSessionTemplateName] = useState<string | null>(null);
@@ -747,7 +745,6 @@ export default function WorkoutScreen() {
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior="padding"
-        keyboardVerticalOffset={headerHeight}
       >
         <ScrollView
           contentContainerStyle={[styles.content, { paddingBottom: 100 }]}
@@ -780,7 +777,7 @@ export default function WorkoutScreen() {
       <View style={[styles.footer, {
         position: 'absolute',
         left: 0, right: 0,
-        bottom: keyboardOffset,
+        bottom: keyboardOffset > 0 ? keyboardOffset + 16 : 0,
         paddingBottom: keyboardOffset > 0 ? 8 : insets.bottom + 8,
       }]}>
         <Pressable style={styles.saveBtn} onPress={handleSave}>
@@ -791,7 +788,7 @@ export default function WorkoutScreen() {
       {/* FAB: KAV の外で absolute 配置 */}
       <Pressable
         style={[styles.fab, {
-          bottom: keyboardOffset > 0 ? keyboardOffset + 80 : insets.bottom + 80,
+          bottom: keyboardOffset > 0 ? keyboardOffset + 96 : insets.bottom + 80,
         }]}
         onPress={() => router.push('/workout/add-exercise' as never)}
       >

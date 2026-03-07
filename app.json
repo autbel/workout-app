@@ -18,7 +18,7 @@
     },
     "android": {
       "package": "com.personal.kintorenikki",
-      "versionCode": 7,
+      "versionCode": 8,
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/images/android-icon-foreground.png",

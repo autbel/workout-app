@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Alert,
+  AppState,
   Keyboard,
   Platform,
   Pressable,
@@ -12,6 +13,7 @@ import {
   View,
 } from 'react-native';
 import { useFocusEffect, useLocalSearchParams, useNavigation, useRouter } from 'expo-router';
+import * as Notifications from 'expo-notifications';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useKeepAwake } from 'expo-keep-awake';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
@@ -36,6 +38,17 @@ interface DraftExercise {
   sets: DraftSet[];
   timerSec?: number;
 }
+
+// フォアグラウンドでも通知を表示する
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowAlert: true,
+    shouldShowBanner: true,
+    shouldShowList: true,
+    shouldPlaySound: true,
+    shouldSetBadge: false,
+  }),
+});
 
 // ─── Helpers ─────────────────────────────────────────────
 
@@ -185,6 +198,8 @@ function ExerciseCard({
   const [remainingSec, setRemainingSec] = useState<number | null>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const soundRef = useRef<any>(null);
+  const notificationIdRef = useRef<string | null>(null);
+  const backgroundTimeRef = useRef<number | null>(null);
   const isRunning = remainingSec !== null;
   const isFinished = remainingSec === 0;
   const timerError = timerTouched && (timerInput === '' || parseInt(timerInput, 10) <= 0);
@@ -197,7 +212,34 @@ function ExerciseCard({
         soundRef.current.unloadAsync().catch(() => {});
         soundRef.current = null;
       }
+      if (notificationIdRef.current) {
+        Notifications.cancelScheduledNotificationAsync(notificationIdRef.current).catch(() => {});
+        notificationIdRef.current = null;
+      }
     };
+  }, []);
+
+  // バックグラウンド移行時に時刻を記録し、復帰時に経過時間を補正する
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (nextState) => {
+      if (nextState === 'background' || nextState === 'inactive') {
+        backgroundTimeRef.current = Date.now();
+      } else if (nextState === 'active' && backgroundTimeRef.current !== null) {
+        const elapsed = Math.round((Date.now() - backgroundTimeRef.current) / 1000);
+        backgroundTimeRef.current = null;
+        setRemainingSec((prev) => {
+          if (prev === null) return null;
+          const next = prev - elapsed;
+          if (next <= 0) {
+            if (intervalRef.current) { clearInterval(intervalRef.current); intervalRef.current = null; }
+            // 通知はすでにシステムが発火済みなのでここでは何もしない
+            return 0;
+          }
+          return next;
+        });
+      }
+    });
+    return () => sub.remove();
   }, []);
 
   const playBeep = async () => {
@@ -229,12 +271,29 @@ function ExerciseCard({
     const sec = parseInt(timerInput, 10);
     if (!sec || sec <= 0) return;
     setRemainingSec(sec);
+    // バックグラウンド/別画面用にローカル通知をスケジュール
+    Notifications.scheduleNotificationAsync({
+      content: {
+        title: 'タイマー終了',
+        body: `${exercise.exerciseName} のタイマーが終了しました`,
+        sound: true,
+      },
+      trigger: {
+        type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
+        seconds: sec,
+      },
+    }).then((id) => { notificationIdRef.current = id; }).catch(() => {});
     intervalRef.current = setInterval(() => {
       setRemainingSec((prev) => {
         if (prev === null || prev <= 1) {
           clearInterval(intervalRef.current!);
           intervalRef.current = null;
           if (prev === 1) {
+            // 画面上で自然終了: 通知をキャンセルして in-app 音/バイブを使う
+            if (notificationIdRef.current) {
+              Notifications.cancelScheduledNotificationAsync(notificationIdRef.current).catch(() => {});
+              notificationIdRef.current = null;
+            }
             if (timerVibrationEnabled) Vibration.vibrate([0, 400, 200, 400]);
             if (timerSoundEnabled) playBeep();
           }
@@ -247,6 +306,10 @@ function ExerciseCard({
 
   const resetTimer = () => {
     if (intervalRef.current) { clearInterval(intervalRef.current); intervalRef.current = null; }
+    if (notificationIdRef.current) {
+      Notifications.cancelScheduledNotificationAsync(notificationIdRef.current).catch(() => {});
+      notificationIdRef.current = null;
+    }
     stopSound();
     setRemainingSec(null);
   };
@@ -482,6 +545,36 @@ export default function WorkoutScreen() {
     return () => { show.remove(); hide.remove(); };
   }, []);
 
+  // 通知パーミッションをリクエスト
+  useEffect(() => {
+    Notifications.requestPermissionsAsync().catch(() => {});
+  }, []);
+
+  // 未保存データがある状態で戻ろうとした時に確認ダイアログを表示
+  useEffect(() => {
+    const hasUnsavedData = exercises.some((e) =>
+      e.sets.some((s) => s.reps !== '' || s.weightKg !== '')
+    );
+    if (!hasUnsavedData) return;
+
+    const unsubscribe = navigation.addListener('beforeRemove', (e) => {
+      e.preventDefault();
+      Alert.alert(
+        '保存されていません',
+        '入力内容が保存されていません。破棄して戻りますか？',
+        [
+          { text: 'キャンセル', style: 'cancel' },
+          {
+            text: '破棄して戻る',
+            style: 'destructive',
+            onPress: () => navigation.dispatch(e.data.action),
+          },
+        ]
+      );
+    });
+    return unsubscribe;
+  }, [navigation, exercises]);
+
   const { pendingExercises, pendingTemplateId, pendingTemplateName, clearPending, copiedSets, setCopiedSets } = useWorkoutStore();
 
   // ExerciseHistoryScreen でコピーされたセットを該当種目に適用
@@ -686,6 +779,7 @@ export default function WorkoutScreen() {
                 }
               }
             }
+            setExercises([]); // beforeRemove ガードを解除してから戻る
             router.back();
           },
         },
@@ -736,6 +830,7 @@ export default function WorkoutScreen() {
         await saveSessions(all.filter((s) => !toDelete.some((d) => d.id === s.id)));
       }
     }
+    setExercises([]); // beforeRemove ガードを解除してから戻る
     router.back();
   };
 

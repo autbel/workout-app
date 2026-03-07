@@ -34,7 +34,8 @@
     },
     "plugins": [
       "expo-router",
-      "./plugins/withAndroidKeyboard"
+      "./plugins/withAndroidKeyboard",
+      "expo-notifications"
     ],
     "experiments": {
       "typedRoutes": true

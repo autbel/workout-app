@@ -745,6 +745,7 @@ export default function WorkoutScreen() {
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior="padding"
+        keyboardVerticalOffset={-90}
       >
         <ScrollView
           contentContainerStyle={[styles.content, { paddingBottom: 100 }]}

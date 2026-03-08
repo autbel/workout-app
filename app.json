@@ -18,7 +18,7 @@
     },
     "android": {
       "package": "com.personal.kintorenikki",
-      "versionCode": 13,
+      "versionCode": 15,
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
@@ -35,7 +35,8 @@
     "plugins": [
       "expo-router",
       "./plugins/withAndroidKeyboard",
-      "expo-notifications"
+      "expo-notifications",
+      "expo-sharing"
     ],
     "experiments": {
       "typedRoutes": true

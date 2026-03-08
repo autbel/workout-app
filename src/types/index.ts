@@ -30,6 +30,7 @@ export interface ExerciseEntry {
   exerciseName: string; // マスター変更の影響を受けないようスナップショット
   timerPresets: TimerPreset[]; // スナップショット
   sets: SetEntry[];
+  memo?: string;
 }
 
 export interface WorkoutSession {

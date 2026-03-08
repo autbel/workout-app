@@ -1,6 +1,6 @@
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
+import { Alert, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import FontAwesome5 from '@expo/vector-icons/FontAwesome5';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
@@ -8,6 +8,7 @@ import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 
 import { DEFAULT_CATEGORY_ORDER, getSettings, patchSettings } from '@/src/lib/storage';
 import type { AppSettings } from '@/src/lib/storage';
+import { exportBackup, importBackup } from '@/src/lib/backup';
 
 const DEFAULT: AppSettings = {
   unit: 'kg',
@@ -35,6 +36,35 @@ export default function SettingsScreen() {
   async function toggle<K extends keyof AppSettings>(key: K, value: AppSettings[K]) {
     const updated = await patchSettings({ [key]: value } as Partial<AppSettings>);
     setSettings({ ...DEFAULT, ...updated });
+  }
+
+  async function handleExport() {
+    try {
+      await exportBackup();
+    } catch (e) {
+      Alert.alert('エラー', 'バックアップの書き出しに失敗しました');
+    }
+  }
+
+  function handleImport() {
+    Alert.alert(
+      'バックアップから復元',
+      '現在のデータがすべて上書きされます。続けますか？',
+      [
+        { text: 'キャンセル', style: 'cancel' },
+        {
+          text: '復元する', style: 'destructive',
+          onPress: async () => {
+            try {
+              await importBackup();
+              Alert.alert('完了', 'データを復元しました');
+            } catch (e) {
+              Alert.alert('エラー', 'バックアップの読み込みに失敗しました');
+            }
+          },
+        },
+      ],
+    );
   }
 
   return (
@@ -89,6 +119,21 @@ export default function SettingsScreen() {
             </Pressable>
           </View>
         </View>
+      </View>
+
+      {/* ─── バックアップ ─── */}
+      <Text style={styles.sectionTitle}>バックアップ</Text>
+      <View style={styles.card}>
+        <Pressable style={[styles.row, styles.rowBorder]} onPress={handleExport}>
+          <FontAwesome name="upload" size={18} color="#2563eb" style={styles.icon} />
+          <Text style={styles.rowLabel}>バックアップを書き出す</Text>
+          <FontAwesome name="chevron-right" size={14} color="#bbb" />
+        </Pressable>
+        <Pressable style={styles.row} onPress={handleImport}>
+          <FontAwesome name="download" size={18} color="#2563eb" style={styles.icon} />
+          <Text style={styles.rowLabel}>バックアップから復元</Text>
+          <FontAwesome name="chevron-right" size={14} color="#bbb" />
+        </Pressable>
       </View>
 
       {/* ─── タイマー ─── */}

@@ -97,6 +97,9 @@ export default function HistoryDetailScreen() {
               <Text style={[styles.setCol, { flex: 1 }]}>{s.weightKg} kg</Text>
             </View>
           ))}
+          {ex.memo ? (
+            <Text style={styles.exMemoText}>{ex.memo}</Text>
+          ) : null}
         </View>
       ))}
 
@@ -150,6 +153,16 @@ const styles = StyleSheet.create({
   setHeader: { flexDirection: 'row', marginBottom: 4 },
   setCol: { width: 40, fontSize: 13, color: '#aaa' },
   setRow: { flexDirection: 'row', paddingVertical: 4 },
+
+  exMemoText: {
+    fontSize: 13,
+    color: '#666',
+    marginTop: 8,
+    paddingTop: 8,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: '#eee',
+    lineHeight: 18,
+  },
 
   copyBtn: {
     backgroundColor: '#007AFF',

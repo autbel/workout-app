@@ -37,6 +37,7 @@ interface DraftExercise {
   exerciseName: string;
   sets: DraftSet[];
   timerSec?: number;
+  memo?: string;
 }
 
 // フォアグラウンドでも通知を表示する
@@ -421,6 +422,15 @@ function ExerciseCard({
         <FontAwesome name="plus" size={12} color="#2563eb" />
         <Text style={cardStyles.addSetText}>セット追加</Text>
       </Pressable>
+
+      <TextInput
+        style={cardStyles.exerciseMemoInput}
+        placeholder="種目メモ..."
+        placeholderTextColor="#bbb"
+        multiline
+        value={exercise.memo ?? ''}
+        onChangeText={(v) => onChange({ ...exercise, memo: v })}
+      />
     </View>
   );
 }
@@ -456,6 +466,17 @@ const cardStyles = StyleSheet.create({
     alignSelf: 'flex-start',
   },
   addSetText: { color: '#2563eb', fontSize: 13, fontWeight: '600' },
+
+  exerciseMemoInput: {
+    marginTop: 10,
+    fontSize: 13,
+    color: '#444',
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: '#eee',
+    paddingTop: 8,
+    minHeight: 32,
+    textAlignVertical: 'top',
+  },
 
   timerRow: {
     flexDirection: 'row',
@@ -624,6 +645,7 @@ export default function WorkoutScreen() {
                 weightKg: String(s.weightKg),
               })),
               timerSec: e.timerPresets[0]?.durationSec,
+              memo: e.memo,
             })),
           );
         }
@@ -808,6 +830,7 @@ export default function WorkoutScreen() {
           ? [{ id: generateId(), label: 'last', mode: 'countdown' as const, durationSec: e.timerSec }]
           : [],
         sets: validSets,
+        memo: e.memo?.trim() || undefined,
       };
     });
 
@@ -862,6 +885,7 @@ export default function WorkoutScreen() {
             onNamePress={() => router.push(`/exercise-history/${encodeURIComponent(ex.exerciseName)}` as never)}
           />
         ))}
+
       </ScrollView>
 
       {/* 完了ボタン: キーボードの上に固定 */}

@@ -577,6 +577,7 @@ export default function WorkoutScreen() {
   const [keyboardOffset, setKeyboardOffset] = useState(0);
   const [hasUnsavedData, setHasUnsavedData] = useState(false);
   const hasUnsavedDataRef = useRef(false);
+  const navigatingToSubScreenRef = useRef(false);
 
   useEffect(() => {
     const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
@@ -618,19 +619,12 @@ export default function WorkoutScreen() {
     );
   }, [router]);
 
-  // スワイプジェスチャー無効化 + カスタム戻るボタン（iOS）
+  // スワイプジェスチャー無効化（変更あり時）
   useEffect(() => {
     navigation.setOptions({
       gestureEnabled: !hasUnsavedData,
-      headerLeft: hasUnsavedData
-        ? () => (
-            <Pressable onPress={showUnsavedAlert} hitSlop={16} style={{ paddingRight: 8 }}>
-              <FontAwesome name="chevron-left" size={18} color="#007AFF" />
-            </Pressable>
-          )
-        : undefined,
     });
-  }, [navigation, hasUnsavedData, showUnsavedAlert]);
+  }, [navigation, hasUnsavedData]);
 
   // Android ハードウェアバックボタン
   useEffect(() => {
@@ -642,10 +636,14 @@ export default function WorkoutScreen() {
     return () => sub.remove();
   }, [hasUnsavedData, showUnsavedAlert]);
 
-  // beforeRemove（安全網：上記で捕捉できなかった場合）
+  // beforeRemove（安全網：サブ画面への遷移時はスキップ）
   useEffect(() => {
     const unsubscribe = navigation.addListener('beforeRemove', (e) => {
       if (!hasUnsavedDataRef.current) return;
+      if (navigatingToSubScreenRef.current) {
+        navigatingToSubScreenRef.current = false;
+        return;
+      }
       e.preventDefault();
       showUnsavedAlert();
     });
@@ -728,22 +726,17 @@ export default function WorkoutScreen() {
         (s) => s.finishedAt != null && (!date || sessionToLocalDate(s) < date),
       );
 
-      // 単独追加用：テンプレートなしのセッションのみ
-      const standaloneSessions = pastSessions.filter((s) => !s.templateId);
-
       const defaultSets: Record<string, DraftSet[]> = {};
       const defaultTimers: Record<string, number | undefined> = {};
 
-      // exerciseId または exerciseName で直近エントリを検索（単独セッションのみ）
-      // 優先順位: ①日付（新しい順）②配列末尾（後から追加）
+      // 入力対象日より前の全セッションから直近の当該種目記録を取得
       const findEntry = (exId: string, exName: string): ExerciseEntry | null => {
-        const found = standaloneSessions
+        const found = pastSessions
           .flatMap((s) => s.exercises.map((e) => ({ s, e })))
           .filter(({ e }) => e.exerciseId === exId || e.exerciseName === exName)
           .sort((a, b) => {
             const byDate = sessionToLocalDate(b.s).localeCompare(sessionToLocalDate(a.s));
             if (byDate !== 0) return byDate;
-            // 同じローカル日付 → セット数が多い方を優先（より完全なワークアウト）
             return b.e.sets.length - a.e.sets.length;
           })[0];
         return found ? found.e : null;
@@ -752,54 +745,17 @@ export default function WorkoutScreen() {
       const toDraft = (sets: SetEntry[]): DraftSet[] =>
         sets.map((s) => ({ id: generateId(), reps: String(s.reps), weightKg: String(s.weightKg) }));
 
-      if (tplId) {
-        // メニュー選択：同じ templateId の直近セッションから前回値を取得
-        const prev = pastSessions
-          .filter((s) => s.templateId === tplId)
-          .sort((a, b) => {
-            const byDate = sessionToLocalDate(b).localeCompare(sessionToLocalDate(a));
-            if (byDate !== 0) return byDate;
-            // 同じローカル日付 → 総セット数が多い方（テンプレートセッション）を優先
-            const totalA = a.exercises.reduce((sum, e) => sum + e.sets.length, 0);
-            const totalB = b.exercises.reduce((sum, e) => sum + e.sets.length, 0);
-            return totalB - totalA;
-          })[0];
+      for (const ex of exercises) {
+        const entry = findEntry(ex.id, ex.name);
+        if (entry) {
+          defaultSets[ex.id] = toDraft(entry.sets);
+          defaultTimers[ex.id] = entry.timerPresets[0]?.durationSec;
+        }
+      }
 
-        if (prev) {
-          // 前回テンプレートセッションあり：種目を ID または名前で照合
-          for (const ex of exercises) {
-            const entry = prev.exercises.find(
-              (e) => e.exerciseId === ex.id || e.exerciseName === ex.name,
-            );
-            if (entry) {
-              defaultSets[ex.id] = toDraft(entry.sets);
-              defaultTimers[ex.id] = entry.timerPresets[0]?.durationSec;
-            }
-          }
-        } else {
-          // 前回テンプレートセッションなし：種目単独の履歴にフォールバック
-          for (const ex of exercises) {
-            const entry = findEntry(ex.id, ex.name);
-            if (entry) {
-              defaultSets[ex.id] = toDraft(entry.sets);
-              defaultTimers[ex.id] = entry.timerPresets[0]?.durationSec;
-            }
-          }
-        }
-
-        if (!sessionTemplateId) {
-          setSessionTemplateId(tplId);
-          setSessionTemplateName(tplName);
-        }
-      } else {
-        // 種目単独：exerciseId / exerciseName を含む直近セッションから前回値を取得
-        for (const ex of exercises) {
-          const entry = findEntry(ex.id, ex.name);
-          if (entry) {
-            defaultSets[ex.id] = toDraft(entry.sets);
-            defaultTimers[ex.id] = entry.timerPresets[0]?.durationSec;
-          }
-        }
+      if (tplId && !sessionTemplateId) {
+        setSessionTemplateId(tplId);
+        setSessionTemplateName(tplName);
       }
 
       setExercises((prev) => [
@@ -975,7 +931,10 @@ export default function WorkoutScreen() {
             timerVibrationEnabled={settings.timerVibrationEnabled}
             onChange={(updated) => updateExercise(idx, updated)}
             onRemove={() => removeExercise(idx)}
-            onNamePress={() => router.push(`/exercise-history/${encodeURIComponent(ex.exerciseName)}` as never)}
+            onNamePress={() => {
+              navigatingToSubScreenRef.current = true;
+              router.push(`/exercise-history/${encodeURIComponent(ex.exerciseName)}` as never);
+            }}
           />
         ))}
 
@@ -996,7 +955,10 @@ export default function WorkoutScreen() {
         style={[styles.fab, {
           bottom: keyboardOffset > 0 ? keyboardOffset + 80 : insets.bottom + 80,
         }]}
-        onPress={() => router.push('/workout/add-exercise' as never)}
+        onPress={() => {
+          navigatingToSubScreenRef.current = true;
+          router.push('/workout/add-exercise' as never);
+        }}
       >
         <FontAwesome name="plus" size={22} color="#fff" />
       </Pressable>

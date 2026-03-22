@@ -3,12 +3,12 @@ import { useCallback, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import FontAwesome5 from '@expo/vector-icons/FontAwesome5';
-import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 
 import { DEFAULT_CATEGORY_ORDER, getSettings, patchSettings } from '@/src/lib/storage';
 import type { AppSettings } from '@/src/lib/storage';
 import { exportBackup, importBackup } from '@/src/lib/backup';
+import { restoreMissingPresets, resetToPresets } from '@/src/lib/seed';
 
 const DEFAULT: AppSettings = {
   unit: 'kg',
@@ -44,6 +44,40 @@ export default function SettingsScreen() {
     } catch (e) {
       Alert.alert('エラー', 'バックアップの書き出しに失敗しました');
     }
+  }
+
+  function handleRestorePresets() {
+    Alert.alert(
+      'プリセットを復元',
+      '削除された初期の部位・種目・メニューを追加します。\n自分で作ったデータはそのまま残ります。\n続けますか？',
+      [
+        { text: 'キャンセル', style: 'cancel' },
+        {
+          text: '復元する',
+          onPress: async () => {
+            await restoreMissingPresets();
+            Alert.alert('完了', '削除されたプリセットを復元しました');
+          },
+        },
+      ],
+    );
+  }
+
+  function handleResetToPresets() {
+    Alert.alert(
+      '初期データにリセット',
+      '部位・種目・メニューがすべて初期状態に戻ります。\nトレーニング履歴は削除されません。\n続けますか？',
+      [
+        { text: 'キャンセル', style: 'cancel' },
+        {
+          text: 'リセット', style: 'destructive',
+          onPress: async () => {
+            await resetToPresets();
+            Alert.alert('完了', '初期データにリセットしました');
+          },
+        },
+      ],
+    );
   }
 
   function handleImport() {
@@ -90,6 +124,21 @@ export default function SettingsScreen() {
         <Pressable style={styles.row} onPress={() => router.push('/pr-exercises' as never)}>
           <FontAwesome name="trophy" size={18} color="#2563eb" style={styles.icon} />
           <Text style={styles.rowLabel}>自己記録の編集</Text>
+          <FontAwesome name="chevron-right" size={14} color="#bbb" />
+        </Pressable>
+      </View>
+
+      {/* ─── 初期データ ─── */}
+      <Text style={styles.sectionTitle}>初期データ</Text>
+      <View style={styles.card}>
+        <Pressable style={[styles.row, styles.rowBorder]} onPress={handleRestorePresets}>
+          <FontAwesome name="refresh" size={18} color="#2563eb" style={styles.icon} />
+          <Text style={styles.rowLabel}>削除したプリセットを復元</Text>
+          <FontAwesome name="chevron-right" size={14} color="#bbb" />
+        </Pressable>
+        <Pressable style={styles.row} onPress={handleResetToPresets}>
+          <FontAwesome name="undo" size={18} color="#ef4444" style={styles.icon} />
+          <Text style={[styles.rowLabel, { color: '#ef4444' }]}>部位・種目・メニューをリセット</Text>
           <FontAwesome name="chevron-right" size={14} color="#bbb" />
         </Pressable>
       </View>

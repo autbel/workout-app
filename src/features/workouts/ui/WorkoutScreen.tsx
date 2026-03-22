@@ -842,87 +842,112 @@ export default function WorkoutScreen() {
     const filledExercises = exercises.filter((e) =>
       e.sets.some((s) => s.reps !== '' || s.weightKg !== ''),
     );
-    if (filledExercises.length === 0) {
-      Alert.alert('確認', 'セットが記録されていません。終了しますか？', [
-        { text: 'キャンセル', style: 'cancel' },
-        {
-          text: '終了する',
-          style: 'destructive',
-          onPress: async () => {
-            if (existingSessionId) {
-              const now = new Date().toISOString();
-              await upsertSession({
-                id: existingSessionId,
-                startedAt: date ? dateToStartedAt(date) : now,
-                finishedAt: now,
-                templateId: sessionTemplateId ?? undefined,
-                templateName: sessionTemplateName ?? undefined,
-                exercises: [],
-              });
-              if (date) {
-                const all = await getSessions();
-                const toDelete = all.filter(
-                  (s) => s.id !== existingSessionId && sessionMatchesDate(s, date),
-                );
-                if (toDelete.length > 0) {
-                  await saveSessions(all.filter((s) => !toDelete.some((d) => d.id === s.id)));
-                }
-              }
-            }
-            setExercises([]); // beforeRemove ガードを解除してから戻る
-            router.back();
-          },
-        },
+
+    const exitWithoutSave = async () => {
+      if (existingSessionId) {
+        const now = new Date().toISOString();
+        await upsertSession({
+          id: existingSessionId,
+          startedAt: date ? dateToStartedAt(date) : now,
+          finishedAt: now,
+          templateId: sessionTemplateId ?? undefined,
+          templateName: sessionTemplateName ?? undefined,
+          exercises: [],
+        });
+        if (date) {
+          const all = await getSessions();
+          const toDelete = all.filter(
+            (s) => s.id !== existingSessionId && sessionMatchesDate(s, date),
+          );
+          if (toDelete.length > 0) {
+            await saveSessions(all.filter((s) => !toDelete.some((d) => d.id === s.id)));
+          }
+        }
+      }
+      hasUnsavedDataRef.current = false;
+      setHasUnsavedData(false);
+      setExercises([]);
+      router.back();
+    };
+
+    // パターン 1: 種目が 1 つも追加されていない
+    if (exercises.length === 0) {
+      Alert.alert('種目が記録されていません', '入力を終了しますか？', [
+        { text: '入力を続ける', style: 'cancel' },
+        { text: '終了して戻る', style: 'destructive', onPress: exitWithoutSave },
       ]);
       return;
     }
 
-    const now = new Date().toISOString();
-    const unit = settings.unit;
+    // パターン 2: 種目はあるが全セットが未入力
+    if (filledExercises.length === 0) {
+      Alert.alert(
+        '回数・重量が入力されていません',
+        '種目が追加されていますが、回数と重量が入力されていません。\n入力を終了しますか？',
+        [
+          { text: '入力を続ける', style: 'cancel' },
+          { text: '終了して戻る', style: 'destructive', onPress: exitWithoutSave },
+        ],
+      );
+      return;
+    }
 
-    const sessionExercises: ExerciseEntry[] = filledExercises.map((e) => {
-      const validSets: SetEntry[] = e.sets
-        .filter((s) => s.reps !== '' || s.weightKg !== '')
-        .map((s) => {
-          const reps = parseInt(s.reps, 10) || 0;
-          const weightKg =
-            unit === 'kg'
-              ? parseFloat(s.weightKg) || 0
-              : (parseFloat(s.weightKg) || 0) * 0.453592;
-          return { reps, weightKg, completedAt: now };
-        });
-      return {
-        exerciseId: e.exerciseId,
-        exerciseName: e.exerciseName,
-        timerPresets: e.timerSec
-          ? [{ id: generateId(), label: 'last', mode: 'countdown' as const, durationSec: e.timerSec }]
-          : [],
-        sets: validSets,
-        memo: e.memo?.trim() || undefined,
+    // パターン 3: 入力済みデータあり → 確認して保存
+    const doSave = async () => {
+      const now = new Date().toISOString();
+      const unit = settings.unit;
+
+      const sessionExercises: ExerciseEntry[] = filledExercises.map((e) => {
+        const validSets: SetEntry[] = e.sets
+          .filter((s) => s.reps !== '' || s.weightKg !== '')
+          .map((s) => {
+            const reps = parseInt(s.reps, 10) || 0;
+            const weightKg =
+              unit === 'kg'
+                ? parseFloat(s.weightKg) || 0
+                : (parseFloat(s.weightKg) || 0) * 0.453592;
+            return { reps, weightKg, completedAt: now };
+          });
+        return {
+          exerciseId: e.exerciseId,
+          exerciseName: e.exerciseName,
+          timerPresets: e.timerSec
+            ? [{ id: generateId(), label: 'last', mode: 'countdown' as const, durationSec: e.timerSec }]
+            : [],
+          sets: validSets,
+          memo: e.memo?.trim() || undefined,
+        };
+      });
+
+      const session: WorkoutSession = {
+        id: existingSessionId ?? generateId(),
+        startedAt: date ? dateToStartedAt(date) : new Date().toISOString(),
+        finishedAt: now,
+        templateId: sessionTemplateId ?? undefined,
+        templateName: sessionTemplateName ?? undefined,
+        exercises: sessionExercises,
       };
-    });
 
-    const session: WorkoutSession = {
-      id: existingSessionId ?? generateId(),
-      startedAt: date ? dateToStartedAt(date) : new Date().toISOString(),
-      finishedAt: now,
-      templateId: sessionTemplateId ?? undefined,
-      templateName: sessionTemplateName ?? undefined,
-      exercises: sessionExercises,
+      await upsertSession(session);
+      if (date) {
+        const all = await getSessions();
+        const toDelete = all.filter(
+          (s) => s.id !== session.id && sessionMatchesDate(s, date),
+        );
+        if (toDelete.length > 0) {
+          await saveSessions(all.filter((s) => !toDelete.some((d) => d.id === s.id)));
+        }
+      }
+      hasUnsavedDataRef.current = false;
+      setHasUnsavedData(false);
+      setExercises([]);
+      router.back();
     };
 
-    await upsertSession(session);
-    if (date) {
-      const all = await getSessions();
-      const toDelete = all.filter(
-        (s) => s.id !== session.id && sessionMatchesDate(s, date),
-      );
-      if (toDelete.length > 0) {
-        await saveSessions(all.filter((s) => !toDelete.some((d) => d.id === s.id)));
-      }
-    }
-    setExercises([]); // beforeRemove ガードを解除してから戻る
-    router.back();
+    Alert.alert('保存の確認', 'この内容で保存しますか？', [
+      { text: '入力を続ける', style: 'cancel' },
+      { text: '保存して戻る', onPress: doSave },
+    ]);
   };
 
   return (
@@ -962,7 +987,7 @@ export default function WorkoutScreen() {
         paddingBottom: keyboardOffset > 0 ? 8 : insets.bottom + 8,
       }]}>
         <Pressable style={styles.saveBtn} onPress={handleSave}>
-          <Text style={styles.saveBtnText}>完了</Text>
+          <Text style={styles.saveBtnText}>保存</Text>
         </Pressable>
       </View>
 

@@ -170,6 +170,7 @@ export default function HomeScreen() {
           horizontal
           pagingEnabled
           calendarWidth={CALENDAR_WIDTH}
+          calendarHeight={390}
           calendarStyle={styles.calendarStyle}
           style={styles.calendarList}
           current={today}
@@ -251,7 +252,7 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f5f5f5' },
   calendarWrapper: { position: 'relative' },
-  calendarList: { height: 350, flexGrow: 0 },
+  calendarList: { height: 390, flexGrow: 0 },
   calendarStyle: {
     backgroundColor: '#fff',
     shadowColor: '#000',

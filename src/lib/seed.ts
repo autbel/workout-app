@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-import { saveExercises, saveTemplates } from './storage';
+import { getExercises, getTemplates, saveExercises, saveTemplates, patchSettings, DEFAULT_CATEGORY_ORDER } from './storage';
 import type { Exercise, WorkoutTemplate } from '@/src/types';
 
 const SEED_KEY = 'seeded_v4';
@@ -92,4 +92,28 @@ export async function initSeedDataIfNeeded(): Promise<void> {
   await saveExercises(SEED_EXERCISES);
   await saveTemplates(SEED_TEMPLATES);
   await AsyncStorage.setItem(SEED_KEY, '1');
+}
+
+// 削除されたプリセット種目・メニューのみを追加（既存データは保持）
+export async function restoreMissingPresets(): Promise<void> {
+  const current = await getExercises();
+  const currentIds = new Set(current.map((e) => e.id));
+  const missing = SEED_EXERCISES.filter((e) => !currentIds.has(e.id));
+  if (missing.length > 0) {
+    await saveExercises([...current, ...missing]);
+  }
+
+  const currentTemplates = await getTemplates();
+  const currentTemplateIds = new Set(currentTemplates.map((t) => t.id));
+  const missingTemplates = SEED_TEMPLATES.filter((t) => !currentTemplateIds.has(t.id));
+  if (missingTemplates.length > 0) {
+    await saveTemplates([...currentTemplates, ...missingTemplates]);
+  }
+}
+
+// 全種目・メニューをプリセットにリセット（履歴は保持）
+export async function resetToPresets(): Promise<void> {
+  await saveExercises(SEED_EXERCISES);
+  await saveTemplates(SEED_TEMPLATES);
+  await patchSettings({ categoryOrder: DEFAULT_CATEGORY_ORDER });
 }

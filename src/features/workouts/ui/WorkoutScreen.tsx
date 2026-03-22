@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Alert,
   AppState,
+  BackHandler,
   Keyboard,
   Platform,
   Pressable,
@@ -348,45 +349,60 @@ function ExerciseCard({
       <View style={cardStyles.header}>
         <View style={cardStyles.nameRow}>
           <Text style={cardStyles.name} numberOfLines={1}>{exercise.exerciseName}</Text>
-          <Pressable style={cardStyles.historyBtn} onPress={onNamePress} hitSlop={8}>
-            <Text style={cardStyles.historyBtnText}>履歴</Text>
+          <Pressable
+            onPress={() => {
+              Alert.alert(
+                '種目を削除',
+                `「${exercise.exerciseName}」を削除しますか？`,
+                [
+                  { text: 'キャンセル', style: 'cancel' },
+                  { text: '削除', style: 'destructive', onPress: onRemove },
+                ]
+              );
+            }}
+            hitSlop={12}
+            style={{ marginLeft: 8 }}
+          >
+            <FontAwesome name="trash-o" size={18} color="#ef4444" />
           </Pressable>
         </View>
         <View style={cardStyles.timerRow}>
-          <FontAwesome name="clock-o" size={13} color="#888" />
-          {isRunning ? (
-            <Text style={[cardStyles.timerDisplay, isFinished && cardStyles.timerFinished]}>
-              {formatTime(remainingSec!)}
-            </Text>
-          ) : (
-            <TextInput
-              style={[cardStyles.timerInput, timerError && cardStyles.timerInputError]}
-              value={timerInput}
-              onChangeText={(v) => {
-                if (/^\d*$/.test(v)) {
-                  setTimerInput(v);
-                  const sec = parseInt(v, 10);
-                  if (sec > 0) onChange({ ...exercise, timerSec: sec });
-                }
-              }}
-              onBlur={() => setTimerTouched(true)}
-              keyboardType="number-pad"
-              returnKeyType="done"
-              selectTextOnFocus
-            />
-          )}
-          <Pressable
-            style={[cardStyles.timerBtn, timerError && cardStyles.timerBtnDisabled]}
-            onPress={isRunning ? resetTimer : startTimer}
-            disabled={!isRunning && timerError}
-            hitSlop={8}
-          >
-            <FontAwesome name={isRunning ? 'stop' : 'play'} size={10} color="#fff" />
+          <Pressable style={cardStyles.historyBtn} onPress={onNamePress} hitSlop={8}>
+            <Text style={cardStyles.historyBtnText}>履歴</Text>
           </Pressable>
+          <View style={cardStyles.timerInner}>
+            <FontAwesome name="clock-o" size={13} color="#888" />
+            {isRunning ? (
+              <Text style={[cardStyles.timerDisplay, isFinished && cardStyles.timerFinished]}>
+                {formatTime(remainingSec!)}
+              </Text>
+            ) : (
+              <TextInput
+                style={[cardStyles.timerInput, timerError && cardStyles.timerInputError]}
+                value={timerInput}
+                onChangeText={(v) => {
+                  if (/^\d*$/.test(v)) {
+                    setTimerInput(v);
+                    const sec = parseInt(v, 10);
+                    if (sec > 0) onChange({ ...exercise, timerSec: sec });
+                  }
+                }}
+                onBlur={() => setTimerTouched(true)}
+                keyboardType="number-pad"
+                returnKeyType="done"
+                selectTextOnFocus
+              />
+            )}
+            <Pressable
+              style={[cardStyles.timerBtn, timerError && cardStyles.timerBtnDisabled]}
+              onPress={isRunning ? resetTimer : startTimer}
+              disabled={!isRunning && timerError}
+              hitSlop={8}
+            >
+              <FontAwesome name={isRunning ? 'stop' : 'play'} size={10} color="#fff" />
+            </Pressable>
+          </View>
         </View>
-        <Pressable onPress={onRemove} hitSlop={12} style={{ marginLeft: 8 }}>
-          <FontAwesome name="times" size={16} color="#ccc" />
-        </Pressable>
       </View>
       {timerError && (
         <Text style={cardStyles.timerErrorText}>整数で入力してください</Text>
@@ -425,7 +441,7 @@ function ExerciseCard({
 
       <TextInput
         style={cardStyles.exerciseMemoInput}
-        placeholder="種目メモ..."
+        placeholder="メモ..."
         placeholderTextColor="#bbb"
         multiline
         value={exercise.memo ?? ''}
@@ -451,9 +467,8 @@ const cardStyles = StyleSheet.create({
     marginBottom: 10,
   },
   header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: 'column',
+    gap: 6,
   },
   name: { fontSize: 16, fontWeight: '700', flex: 1 },
   setHeader: { flexDirection: 'row', marginBottom: 4 },
@@ -479,6 +494,11 @@ const cardStyles = StyleSheet.create({
   },
 
   timerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  timerInner: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
@@ -517,9 +537,7 @@ const cardStyles = StyleSheet.create({
   nameRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    flex: 1,
-    flexShrink: 1,
-    marginRight: 8,
+    justifyContent: 'space-between',
   },
   historyBtn: {
     flexDirection: 'row',
@@ -557,6 +575,8 @@ export default function WorkoutScreen() {
   const [sessionTemplateId, setSessionTemplateId] = useState<string | null>(null);
   const [sessionTemplateName, setSessionTemplateName] = useState<string | null>(null);
   const [keyboardOffset, setKeyboardOffset] = useState(0);
+  const [hasUnsavedData, setHasUnsavedData] = useState(false);
+  const hasUnsavedDataRef = useRef(false);
 
   useEffect(() => {
     const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
@@ -571,30 +591,66 @@ export default function WorkoutScreen() {
     Notifications.requestPermissionsAsync().catch(() => {});
   }, []);
 
-  // 未保存データがある状態で戻ろうとした時に確認ダイアログを表示
-  useEffect(() => {
-    const hasUnsavedData = exercises.some((e) =>
-      e.sets.some((s) => s.reps !== '' || s.weightKg !== '')
-    );
-    if (!hasUnsavedData) return;
+  // ユーザーが実際に編集した時だけフラグを立てるヘルパー
+  const markModified = useCallback(() => {
+    if (hasUnsavedDataRef.current) return;
+    hasUnsavedDataRef.current = true;
+    setHasUnsavedData(true);
+  }, []);
 
-    const unsubscribe = navigation.addListener('beforeRemove', (e) => {
-      e.preventDefault();
-      Alert.alert(
-        '保存されていません',
-        '入力内容が保存されていません。破棄して戻りますか？',
-        [
-          { text: 'キャンセル', style: 'cancel' },
-          {
-            text: '破棄して戻る',
-            style: 'destructive',
-            onPress: () => navigation.dispatch(e.data.action),
+  // 確認アラート（戻るボタン・BackHandler・beforeRemove で共用）
+  const showUnsavedAlert = useCallback(() => {
+    Alert.alert(
+      '変更内容が保存されていません。',
+      '変更内容を破棄して戻りますか？',
+      [
+        { text: '入力を続ける', style: 'cancel' },
+        {
+          text: '破棄して戻る',
+          style: 'destructive',
+          onPress: () => {
+            hasUnsavedDataRef.current = false;
+            setHasUnsavedData(false);
+            router.back();
           },
-        ]
-      );
+        },
+      ]
+    );
+  }, [router]);
+
+  // スワイプジェスチャー無効化 + カスタム戻るボタン（iOS）
+  useEffect(() => {
+    navigation.setOptions({
+      gestureEnabled: !hasUnsavedData,
+      headerLeft: hasUnsavedData
+        ? () => (
+            <Pressable onPress={showUnsavedAlert} hitSlop={16} style={{ paddingRight: 8 }}>
+              <FontAwesome name="chevron-left" size={18} color="#007AFF" />
+            </Pressable>
+          )
+        : undefined,
+    });
+  }, [navigation, hasUnsavedData, showUnsavedAlert]);
+
+  // Android ハードウェアバックボタン
+  useEffect(() => {
+    if (!hasUnsavedData) return;
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+      showUnsavedAlert();
+      return true;
+    });
+    return () => sub.remove();
+  }, [hasUnsavedData, showUnsavedAlert]);
+
+  // beforeRemove（安全網：上記で捕捉できなかった場合）
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('beforeRemove', (e) => {
+      if (!hasUnsavedDataRef.current) return;
+      e.preventDefault();
+      showUnsavedAlert();
     });
     return unsubscribe;
-  }, [navigation, exercises]);
+  }, [navigation, showUnsavedAlert]);
 
   const { pendingExercises, pendingTemplateId, pendingTemplateName, clearPending, copiedSets, setCopiedSets } = useWorkoutStore();
 
@@ -614,7 +670,11 @@ export default function WorkoutScreen() {
             : ex,
         ),
       );
-    }, [copiedSets, setCopiedSets]),
+      // 履歴からコピーしたデータがある → 変更あり扱い
+      if (sets.some((s) => s.reps !== '' || s.weightKg !== '')) {
+        markModified();
+      }
+    }, [copiedSets, setCopiedSets, markModified]),
   );
 
   // ヘッダータイトル
@@ -751,14 +811,22 @@ export default function WorkoutScreen() {
           timerSec: defaultTimers[ex.id],
         })),
       ]);
+
+      // 履歴から反映されたデータがある → 変更あり扱い
+      const hasPrefilledData = Object.values(defaultSets).some((sets) =>
+        sets.some((s) => s.reps !== '' || s.weightKg !== ''),
+      );
+      if (hasPrefilledData) markModified();
     });
-  }, [pendingExercises]);
+  }, [pendingExercises, markModified]);
 
   const updateExercise = (idx: number, updated: DraftExercise) => {
+    markModified();
     setExercises((prev) => prev.map((e, i) => (i === idx ? updated : e)));
   };
 
   const removeExercise = (idx: number) => {
+    markModified();
     setExercises((prev) => prev.filter((_, i) => i !== idx));
   };
 

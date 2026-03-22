@@ -156,6 +156,16 @@ export default function SettingsScreen() {
           />
         </View>
       </View>
+
+      {/* ─── その他 ─── */}
+      <Text style={styles.sectionTitle}>その他</Text>
+      <View style={styles.card}>
+        <Pressable style={styles.row} onPress={() => router.push('/privacy-policy' as never)}>
+          <FontAwesome name="file-text-o" size={18} color="#555" style={styles.icon} />
+          <Text style={styles.rowLabel}>プライバシーポリシー</Text>
+          <FontAwesome name="chevron-right" size={14} color="#bbb" />
+        </Pressable>
+      </View>
     </ScrollView>
   );
 }

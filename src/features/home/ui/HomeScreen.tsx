@@ -163,7 +163,7 @@ export default function HomeScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['bottom', 'left', 'right']}>
       <View style={styles.calendarWrapper}>
         <CalendarList
           ref={calendarListRef}

@@ -618,6 +618,29 @@ export default function WorkoutScreen() {
     );
   }, [router]);
 
+  // ヘッダー左上の戻るボタンを常に固定幅のカスタムコンポーネントで上書き
+  // → beforeRemove より先にインターセプトでき、レイアウトも変化しない
+  useEffect(() => {
+    navigation.setOptions({
+      headerBackVisible: false,
+      headerLeft: () => (
+        <Pressable
+          onPress={() => {
+            if (hasUnsavedDataRef.current) {
+              showUnsavedAlert();
+            } else {
+              navigation.goBack();
+            }
+          }}
+          style={{ paddingHorizontal: 16, paddingVertical: 10 }}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+        >
+          <FontAwesome name="chevron-left" size={22} color="#2563eb" />
+        </Pressable>
+      ),
+    });
+  }, [navigation, showUnsavedAlert]);
+
   // スワイプジェスチャー無効化（変更あり時）
   useEffect(() => {
     navigation.setOptions({

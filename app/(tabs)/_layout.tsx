@@ -28,7 +28,6 @@ export default function TabLayout() {
         name="index"
         options={{
           title: 'ホーム',
-          headerShown: false,
           tabBarIcon: ({ color }) => <TabBarIcon name="home" color={color} />,
         }}
       />
@@ -36,7 +35,6 @@ export default function TabLayout() {
         name="history"
         options={{
           title: '履歴',
-          headerShown: false,
           tabBarIcon: ({ color }) => <TabBarIcon name="bar-chart" color={color} />,
         }}
       />

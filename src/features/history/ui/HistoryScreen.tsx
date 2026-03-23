@@ -64,7 +64,7 @@ export default function HistoryScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['bottom', 'left', 'right']}>
       {/* ─ 部位（1行均等） ─ */}
       <View style={styles.categoryBar}>
         {categories.map((cat) => {

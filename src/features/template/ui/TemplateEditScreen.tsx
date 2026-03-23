@@ -134,7 +134,7 @@ export default function TemplateEditScreen() {
                   </Pressable>
                 </View>
                 <Pressable onPress={() => removeExercise(item.id)} hitSlop={12}>
-                  <FontAwesome name="times-circle" size={20} color="#c0392b" />
+                  <FontAwesome name="times-circle" size={20} color="#bbb" />
                 </Pressable>
               </View>
             )}

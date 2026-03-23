@@ -88,7 +88,7 @@ export default function PrExercisesScreen() {
                   </Pressable>
                 </View>
                 <Pressable onPress={() => remove(name)} hitSlop={12}>
-                  <FontAwesome name="times-circle" size={20} color="#c0392b" />
+                  <FontAwesome name="times-circle" size={20} color="#bbb" />
                 </Pressable>
               </View>
             )}

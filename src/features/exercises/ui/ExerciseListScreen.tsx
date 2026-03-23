@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
@@ -51,9 +51,22 @@ export default function ExerciseListScreen() {
 
   useFocusEffect(useCallback(() => { load(); }, [load]));
 
-  const handleDelete = async (id: string) => {
-    await deleteExercise(id);
-    await load();
+  const handleDelete = (id: string, name: string) => {
+    Alert.alert(
+      '種目を削除',
+      `「${name}」を削除しますか？`,
+      [
+        { text: 'キャンセル', style: 'cancel' },
+        {
+          text: '削除',
+          style: 'destructive',
+          onPress: async () => {
+            await deleteExercise(id);
+            await load();
+          },
+        },
+      ],
+    );
   };
 
   const handleReorder = async (sectionTitle: string, reorderedItems: Exercise[]) => {
@@ -92,7 +105,7 @@ export default function ExerciseListScreen() {
                         <FontAwesome name="chevron-down" size={11} color={onMoveDown ? '#888' : '#ddd'} />
                       </Pressable>
                     </View>
-                    <Pressable style={styles.deleteBtn} onPress={() => handleDelete(item.id)} hitSlop={8}>
+                    <Pressable style={styles.deleteBtn} onPress={() => handleDelete(item.id, item.name)} hitSlop={8}>
                       <FontAwesome name="trash-o" size={17} color="#ef4444" />
                     </Pressable>
                   </View>

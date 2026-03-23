@@ -75,7 +75,7 @@ export default function ExerciseListScreen() {
                 keyExtractor={(item) => item.id}
                 itemHeight={52}
                 onReorder={(reordered) => handleReorder(section.title, reordered)}
-                renderItem={(item, index, isDragging) => (
+                renderItem={(item, index, isDragging, onMoveUp, onMoveDown) => (
                   <View style={[styles.cardRow, index < section.data.length - 1 && styles.cardBorder, isDragging && styles.cardRowDragging]}>
                     <FontAwesome name="bars" size={15} color="#ccc" style={styles.dragHandle} />
                     <Pressable
@@ -84,6 +84,14 @@ export default function ExerciseListScreen() {
                     >
                       <Text style={styles.name}>{item.name}</Text>
                     </Pressable>
+                    <View style={styles.moveButtons}>
+                      <Pressable onPress={onMoveUp ?? undefined} disabled={!onMoveUp} style={styles.moveBtn}>
+                        <FontAwesome name="chevron-up" size={11} color={onMoveUp ? '#888' : '#ddd'} />
+                      </Pressable>
+                      <Pressable onPress={onMoveDown ?? undefined} disabled={!onMoveDown} style={styles.moveBtn}>
+                        <FontAwesome name="chevron-down" size={11} color={onMoveDown ? '#888' : '#ddd'} />
+                      </Pressable>
+                    </View>
                     <Pressable style={styles.deleteBtn} onPress={() => handleDelete(item.id)} hitSlop={8}>
                       <FontAwesome name="trash-o" size={17} color="#ef4444" />
                     </Pressable>
@@ -150,6 +158,8 @@ const styles = StyleSheet.create({
   deleteBtn: {
     padding: 10,
   },
+  moveButtons: { flexDirection: 'column', marginRight: 4 },
+  moveBtn: { padding: 4 },
   dragHandle: {
     paddingHorizontal: 10,
     paddingVertical: 10,

@@ -64,7 +64,7 @@ export default function TemplateListScreen() {
               keyExtractor={(item) => item.id}
               itemHeight={68}
               onReorder={handleReorder}
-              renderItem={(item, index, isDragging) => (
+              renderItem={(item, index, isDragging, onMoveUp, onMoveDown) => (
                 <View style={[styles.row, index < templates.length - 1 && styles.separator, isDragging && styles.rowDragging]}>
                   <FontAwesome name="bars" size={16} color="#ccc" style={styles.dragHandle} />
                   <Pressable style={styles.rowInner} onPress={() => router.push(`/template/${item.id}`)}>
@@ -73,7 +73,15 @@ export default function TemplateListScreen() {
                       <Text style={styles.sub}>{item.exercises.length} 種目</Text>
                     </View>
                   </Pressable>
-                  <Pressable onPress={() => handleDelete(item)} hitSlop={12}>
+                  <View style={styles.moveButtons}>
+                    <Pressable onPress={onMoveUp ?? undefined} disabled={!onMoveUp} style={styles.moveBtn}>
+                      <FontAwesome name="chevron-up" size={11} color={onMoveUp ? '#888' : '#ddd'} />
+                    </Pressable>
+                    <Pressable onPress={onMoveDown ?? undefined} disabled={!onMoveDown} style={styles.moveBtn}>
+                      <FontAwesome name="chevron-down" size={11} color={onMoveDown ? '#888' : '#ddd'} />
+                    </Pressable>
+                  </View>
+                  <Pressable onPress={() => handleDelete(item)} hitSlop={12} style={styles.deleteBtn}>
                     <FontAwesome name="trash-o" size={17} color="#ef4444" />
                   </Pressable>
                 </View>
@@ -117,6 +125,9 @@ const styles = StyleSheet.create({
   sub: { fontSize: 13, color: '#888', marginTop: 2 },
   separator: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#eee' },
   dragHandle: { marginRight: 12 },
+  moveButtons: { flexDirection: 'column', marginRight: 8 },
+  moveBtn: { padding: 4 },
+  deleteBtn: { paddingLeft: 4 },
   empty: { textAlign: 'center', color: '#999', marginTop: 16, lineHeight: 22 },
   emptyContainer: { flexGrow: 1, justifyContent: 'center', alignItems: 'center' },
   fab: {

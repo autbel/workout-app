@@ -1,15 +1,28 @@
 import { useRef, useState } from 'react';
 import {
   Animated,
+  LayoutAnimation,
   PanResponder,
+  Platform,
   StyleSheet,
+  UIManager,
   View,
 } from 'react-native';
+
+if (Platform.OS === 'android') {
+  UIManager.setLayoutAnimationEnabledExperimental?.(true);
+}
 
 interface DraggableListProps<T> {
   data: T[];
   keyExtractor: (item: T) => string;
-  renderItem: (item: T, index: number, isDragging: boolean) => React.ReactNode;
+  renderItem: (
+    item: T,
+    index: number,
+    isDragging: boolean,
+    onMoveUp: (() => void) | null,
+    onMoveDown: (() => void) | null,
+  ) => React.ReactNode;
   onReorder: (newData: T[]) => void;
   itemHeight?: number;
 }
@@ -52,6 +65,14 @@ export default function DraggableList<T>({
     setActiveKey(null);
   };
 
+  const moveItem = (fromIndex: number, toIndex: number) => {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    const next = [...dataRef.current];
+    const [moved] = next.splice(fromIndex, 1);
+    next.splice(toIndex, 0, moved);
+    onReorderRef.current(next);
+  };
+
   const getOrCreatePanResponder = (key: string) => {
     if (!panRespondersRef.current.has(key)) {
       panRespondersRef.current.set(
@@ -83,6 +104,7 @@ export default function DraggableList<T>({
               const currentData = dataRef.current;
               const newIndex = Math.max(0, Math.min(currentData.length - 1, startIndex + delta));
               if (newIndex !== startIndex) {
+                LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
                 const next = [...currentData];
                 const [moved] = next.splice(startIndex, 1);
                 next.splice(newIndex, 0, moved);
@@ -112,6 +134,8 @@ export default function DraggableList<T>({
         const key = keyExtractor(item);
         const isDragging = activeKey === key;
         const pr = getOrCreatePanResponder(key);
+        const onMoveUp = index > 0 ? () => moveItem(index, index - 1) : null;
+        const onMoveDown = index < data.length - 1 ? () => moveItem(index, index + 1) : null;
 
         return (
           <Animated.View
@@ -122,7 +146,7 @@ export default function DraggableList<T>({
             ]}
             {...pr.panHandlers}
           >
-            {renderItem(item, index, isDragging)}
+            {renderItem(item, index, isDragging, onMoveUp, onMoveDown)}
           </Animated.View>
         );
       })}

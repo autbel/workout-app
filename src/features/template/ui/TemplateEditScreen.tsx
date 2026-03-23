@@ -120,11 +120,19 @@ export default function TemplateEditScreen() {
             keyExtractor={(item) => item.id}
             itemHeight={48}
             onReorder={setExercises}
-            renderItem={(item, index, isDragging) => (
+            renderItem={(item, index, isDragging, onMoveUp, onMoveDown) => (
               <View style={[styles.exRow, isDragging && styles.exRowDragging]}>
                 <FontAwesome name="bars" size={14} color="#ccc" style={styles.dragHandle} />
                 <Text style={styles.exIndex}>{index + 1}.</Text>
                 <Text style={styles.exName}>{item.name}</Text>
+                <View style={styles.moveButtons}>
+                  <Pressable onPress={onMoveUp ?? undefined} disabled={!onMoveUp} style={styles.moveBtn}>
+                    <FontAwesome name="chevron-up" size={11} color={onMoveUp ? '#888' : '#ddd'} />
+                  </Pressable>
+                  <Pressable onPress={onMoveDown ?? undefined} disabled={!onMoveDown} style={styles.moveBtn}>
+                    <FontAwesome name="chevron-down" size={11} color={onMoveDown ? '#888' : '#ddd'} />
+                  </Pressable>
+                </View>
                 <Pressable onPress={() => removeExercise(item.id)} hitSlop={12}>
                   <FontAwesome name="times-circle" size={20} color="#c0392b" />
                 </Pressable>
@@ -172,6 +180,8 @@ const styles = StyleSheet.create({
   dragHandle: { marginRight: 2 },
   exIndex: { fontSize: 14, color: '#888', width: 20 },
   exName: { flex: 1, fontSize: 15 },
+  moveButtons: { flexDirection: 'column', marginHorizontal: 4 },
+  moveBtn: { padding: 3 },
   addExBtn: {
     flexDirection: 'row',
     alignItems: 'center',

@@ -577,7 +577,6 @@ export default function WorkoutScreen() {
   const [keyboardOffset, setKeyboardOffset] = useState(0);
   const [hasUnsavedData, setHasUnsavedData] = useState(false);
   const hasUnsavedDataRef = useRef(false);
-  const navigatingToSubScreenRef = useRef(false);
 
   useEffect(() => {
     const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
@@ -626,24 +625,22 @@ export default function WorkoutScreen() {
     });
   }, [navigation, hasUnsavedData]);
 
-  // Android ハードウェアバックボタン
-  useEffect(() => {
-    if (!hasUnsavedData) return;
-    const sub = BackHandler.addEventListener('hardwareBackPress', () => {
-      showUnsavedAlert();
-      return true;
-    });
-    return () => sub.remove();
-  }, [hasUnsavedData, showUnsavedAlert]);
+  // Android ハードウェアバックボタン（フォーカス中のみ有効）
+  useFocusEffect(
+    useCallback(() => {
+      if (!hasUnsavedData) return;
+      const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+        showUnsavedAlert();
+        return true;
+      });
+      return () => sub.remove();
+    }, [hasUnsavedData, showUnsavedAlert]),
+  );
 
-  // beforeRemove（安全網：サブ画面への遷移時はスキップ）
+  // beforeRemove（左上の戻るボタン対応）
   useEffect(() => {
     const unsubscribe = navigation.addListener('beforeRemove', (e) => {
       if (!hasUnsavedDataRef.current) return;
-      if (navigatingToSubScreenRef.current) {
-        navigatingToSubScreenRef.current = false;
-        return;
-      }
       e.preventDefault();
       showUnsavedAlert();
     });
@@ -932,7 +929,6 @@ export default function WorkoutScreen() {
             onChange={(updated) => updateExercise(idx, updated)}
             onRemove={() => removeExercise(idx)}
             onNamePress={() => {
-              navigatingToSubScreenRef.current = true;
               router.push(`/exercise-history/${encodeURIComponent(ex.exerciseName)}` as never);
             }}
           />
@@ -955,10 +951,7 @@ export default function WorkoutScreen() {
         style={[styles.fab, {
           bottom: keyboardOffset > 0 ? keyboardOffset + 80 : insets.bottom + 80,
         }]}
-        onPress={() => {
-          navigatingToSubScreenRef.current = true;
-          router.push('/workout/add-exercise' as never);
-        }}
+        onPress={() => router.push('/workout/add-exercise' as never)}
       >
         <FontAwesome name="plus" size={22} color="#fff" />
       </Pressable>

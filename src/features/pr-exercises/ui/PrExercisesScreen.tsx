@@ -75,10 +75,18 @@ export default function PrExercisesScreen() {
             keyExtractor={(name) => name}
             itemHeight={52}
             onReorder={handleReorder}
-            renderItem={(name, index, isDragging) => (
+            renderItem={(name, index, isDragging, onMoveUp, onMoveDown) => (
               <View style={[styles.row, index < selected.length - 1 && styles.rowBorder, isDragging && styles.rowDragging]}>
                 <FontAwesome name="bars" size={15} color="#ccc" style={styles.dragHandle} />
                 <Text style={styles.rowLabel}>{name}</Text>
+                <View style={styles.moveButtons}>
+                  <Pressable onPress={onMoveUp ?? undefined} disabled={!onMoveUp} style={styles.moveBtn}>
+                    <FontAwesome name="chevron-up" size={11} color={onMoveUp ? '#888' : '#ddd'} />
+                  </Pressable>
+                  <Pressable onPress={onMoveDown ?? undefined} disabled={!onMoveDown} style={styles.moveBtn}>
+                    <FontAwesome name="chevron-down" size={11} color={onMoveDown ? '#888' : '#ddd'} />
+                  </Pressable>
+                </View>
                 <Pressable onPress={() => remove(name)} hitSlop={12}>
                   <FontAwesome name="times-circle" size={20} color="#c0392b" />
                 </Pressable>
@@ -146,6 +154,8 @@ const styles = StyleSheet.create({
   rowDragging: { backgroundColor: '#f0f5ff' },
   rowLabel: { flex: 1, fontSize: 15 },
   dragHandle: { marginRight: 12 },
+  moveButtons: { flexDirection: 'column', marginRight: 8 },
+  moveBtn: { padding: 4 },
   empty: { fontSize: 14, color: '#aaa' },
   icon: { marginRight: 8 },
   categoryBlock: { marginBottom: 4 },

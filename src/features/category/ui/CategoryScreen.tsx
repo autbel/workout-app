@@ -68,12 +68,20 @@ export default function CategoryScreen() {
               keyExtractor={(cat) => cat}
               itemHeight={52}
               onReorder={handleReorder}
-              renderItem={(cat, index, isDragging) => (
+              renderItem={(cat, index, isDragging, onMoveUp, onMoveDown) => (
                 <View style={[styles.row, index < categories.length - 1 && styles.rowBorder, isDragging && styles.rowDragging]}>
                   <FontAwesome name="bars" size={15} color="#ccc" style={styles.dragHandle} />
                   <Pressable style={styles.rowInner} onPress={() => router.push(`/category/${encodeURIComponent(cat)}` as never)}>
                     <Text style={styles.rowLabel}>{cat}</Text>
                   </Pressable>
+                  <View style={styles.moveButtons}>
+                    <Pressable onPress={onMoveUp ?? undefined} disabled={!onMoveUp} style={styles.moveBtn}>
+                      <FontAwesome name="chevron-up" size={11} color={onMoveUp ? '#888' : '#ddd'} />
+                    </Pressable>
+                    <Pressable onPress={onMoveDown ?? undefined} disabled={!onMoveDown} style={styles.moveBtn}>
+                      <FontAwesome name="chevron-down" size={11} color={onMoveDown ? '#888' : '#ddd'} />
+                    </Pressable>
+                  </View>
                   <Pressable onPress={() => handleDelete(index)} hitSlop={12} style={styles.actionBtn}>
                     <FontAwesome name="trash-o" size={17} color="#ef4444" />
                   </Pressable>
@@ -104,6 +112,8 @@ const styles = StyleSheet.create({
   rowInner: { flex: 1 },
   rowLabel: { fontSize: 15 },
   actionBtn: { padding: 6, marginLeft: 4 },
+  moveButtons: { flexDirection: 'column', marginRight: 4 },
+  moveBtn: { padding: 4 },
 
   emptyContainer: { flexGrow: 1, justifyContent: 'center', alignItems: 'center' },
   empty: { textAlign: 'center', color: '#999', marginTop: 16, lineHeight: 22 },

@@ -1,5 +1,5 @@
 import { useFocusEffect, useRouter } from 'expo-router';
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import FontAwesome5 from '@expo/vector-icons/FontAwesome5';
@@ -21,10 +21,12 @@ const DEFAULT: AppSettings = {
 
 export default function SettingsScreen() {
   const router = useRouter();
+  const scrollRef = useRef<ScrollView>(null);
   const [settings, setSettings] = useState<AppSettings>(DEFAULT);
 
   useFocusEffect(
     useCallback(() => {
+      scrollRef.current?.scrollTo({ y: 0, animated: false });
       let active = true;
       getSettings().then((s) => {
         if (active) setSettings({ ...DEFAULT, ...s });
@@ -102,7 +104,7 @@ export default function SettingsScreen() {
   }
 
   return (
-    <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
+    <ScrollView ref={scrollRef} style={styles.scroll} contentContainerStyle={styles.content}>
       {/* ─── 管理 ─── */}
       <Text style={styles.sectionTitle}>管理</Text>
       <View style={styles.card}>

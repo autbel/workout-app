@@ -3,15 +3,9 @@ import {
   Animated,
   LayoutAnimation,
   PanResponder,
-  Platform,
   StyleSheet,
-  UIManager,
   View,
 } from 'react-native';
-
-if (Platform.OS === 'android') {
-  UIManager.setLayoutAnimationEnabledExperimental?.(true);
-}
 
 interface DraggableListProps<T> {
   data: T[];

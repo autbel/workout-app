@@ -1,6 +1,8 @@
 import { useMemo } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import FontAwesome from '@expo/vector-icons/FontAwesome';
 
+import { estimate1RM } from '@/src/lib/fitness';
 import type { WorkoutSession } from '@/src/types';
 import WorkoutProgressChart, {
   COLOR_RM,
@@ -14,11 +16,6 @@ interface Props {
   exercisesInCategory?: string[];
 }
 
-/** Epley 式による推定1RM */
-function epley1RM(weightKg: number, reps: number): number {
-  if (reps === 1) return weightKg;
-  return weightKg * (1 + reps / 30);
-}
 
 /** 日付を YYYY-MM-DD 文字列で返す（日単位集計） */
 function getDayKey(date: Date): string {
@@ -54,7 +51,7 @@ function buildChartData(
 
     for (const s of entry.sets) {
       if (s.weightKg > 0 && s.reps > 0) {
-        const rm = epley1RM(s.weightKg, s.reps);
+        const rm = estimate1RM(s.weightKg, s.reps);
         if (current.rm === null || rm > current.rm) {
           current.rm   = rm;
           current.date = sessionDate;
@@ -82,10 +79,14 @@ function ChartHeader({ title, showLegend }: { title: string; showLegend: boolean
       <Text style={styles.exerciseName} numberOfLines={1}>{title}</Text>
       {showLegend && (
         <View style={styles.legend}>
-          <View style={styles.legendItem}>
+          <Pressable
+            style={styles.legendItem}
+            onPress={() => Alert.alert('推定1RM について', '計算式: 重量 × (1 + 回数 ÷ 40)\n\n実際に1回だけ挙げられる最大重量の推定値です。\n回数が多いほど誤差が大きくなります。')}
+          >
             <View style={[styles.legendDot, { borderColor: COLOR_RM }]} />
             <Text style={styles.legendText}>推定1RM</Text>
-          </View>
+            <FontAwesome name="info-circle" size={10} color="#bbb" style={{ marginLeft: 2 }} />
+          </Pressable>
           <View style={styles.legendItem}>
             <View style={[styles.legendDot, { borderColor: COLOR_WEIGHT }]} />
             <Text style={styles.legendText}>最大重量</Text>

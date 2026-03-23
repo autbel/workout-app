@@ -240,7 +240,7 @@ export default function WorkoutProgressChart({ data, chartHeight = 200, xStart, 
                         x={x} y={cy - 7}
                         textAnchor="middle" fontSize={fontSize} fill="#333"
                       >
-                        {String(Math.round(pt.oneRM))}
+                        {pt.oneRM.toFixed(1)}
                       </SvgText>
                     </>
                   );

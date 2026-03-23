@@ -20,6 +20,7 @@ import { useKeepAwake } from 'expo-keep-awake';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 
 import { generateId } from '@/src/lib/id';
+import { estimate1RM } from '@/src/lib/fitness';
 import { getSessions, getSettings, saveSessions, upsertSession } from '@/src/lib/storage';
 import { useWorkoutStore } from '@/src/store/workoutStore';
 import type { AppSettings } from '@/src/lib/storage';
@@ -61,11 +62,6 @@ function isValidInt(v: string) {
   return v === '' || /^\d+$/.test(v);
 }
 
-/** Epley 式による推定1RM */
-function epley1RM(weightKg: number, reps: number): number {
-  if (reps === 1) return weightKg;
-  return Math.round(weightKg * (1 + reps / 30) * 10) / 10;
-}
 
 /** YYYY-MM-DD の日付文字列を当日 00:00:00 の ISO 文字列に変換 */
 function dateToStartedAt(date: string): string {
@@ -108,7 +104,7 @@ function SetRow({
 
   const w = parseFloat(set.weightKg);
   const r = parseInt(set.reps, 10);
-  const estimatedRM = (isFinite(w) && w > 0 && isFinite(r) && r > 0) ? epley1RM(w, r) : null;
+  const estimatedRM = (isFinite(w) && w > 0 && isFinite(r) && r > 0) ? estimate1RM(w, r) : null;
 
   return (
     <View style={rowStyles.wrapper}>
@@ -138,7 +134,7 @@ function SetRow({
           <FontAwesome name="times-circle" size={18} color="#bbb" />
         </Pressable>
         {estimatedRM !== null && (
-          <Text style={rowStyles.rmText}>≈{estimatedRM}{unit}</Text>
+          <Text style={rowStyles.rmText}>≈{estimatedRM.toFixed(1)}{unit}</Text>
         )}
       </View>
       {weightError && <Text style={rowStyles.errorText}>重量は数値で入力してください</Text>}
@@ -417,9 +413,13 @@ function ExerciseCard({
         <Text style={[cardStyles.colLabel, { width: 80, textAlign: 'center', marginLeft: 28 }]}>
           回数
         </Text>
-        <Text style={[cardStyles.colLabel, { flex: 1, textAlign: 'right' }]}>
-          推定1RM
-        </Text>
+        <Pressable
+          style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end' }}
+          onPress={() => Alert.alert('推定1RM について', '計算式: 重量 × (1 + 回数 ÷ 40)\n\n実際に1回だけ挙げられる最大重量の推定値です。\n回数が多いほど誤差が大きくなります。')}
+        >
+          <Text style={[cardStyles.colLabel, { textAlign: 'right' }]}>推定1RM</Text>
+          <FontAwesome name="info-circle" size={11} color="#bbb" style={{ marginLeft: 3 }} />
+        </Pressable>
       </View>
 
       {exercise.sets.map((s, i) => (

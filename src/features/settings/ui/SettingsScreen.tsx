@@ -1,6 +1,6 @@
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useRef, useState } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
+import { Alert, Linking, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import FontAwesome5 from '@expo/vector-icons/FontAwesome5';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
@@ -8,6 +8,7 @@ import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { DEFAULT_CATEGORY_ORDER, getSettings, patchSettings } from '@/src/lib/storage';
 import type { AppSettings } from '@/src/lib/storage';
 import { exportBackup, importBackup } from '@/src/lib/backup';
+import { requestNotificationPermission } from '@/src/lib/notifications';
 import { restoreMissingPresets, resetToPresets } from '@/src/lib/seed';
 
 const DEFAULT: AppSettings = {
@@ -15,6 +16,7 @@ const DEFAULT: AppSettings = {
   recentSessionCount: 3,
   timerSoundEnabled: false,
   timerVibrationEnabled: true,
+  timerNotificationEnabled: false,
   categoryOrder: DEFAULT_CATEGORY_ORDER,
   prExercises: ['ベンチプレス', 'スクワット', 'デッドリフト'],
 };
@@ -80,6 +82,24 @@ export default function SettingsScreen() {
         },
       ],
     );
+  }
+
+  async function handleNotificationToggle(value: boolean) {
+    if (value) {
+      const granted = await requestNotificationPermission();
+      if (!granted) {
+        Alert.alert(
+          '通知の許可が必要です',
+          'スマホの設定アプリから「筋トレ日記」の通知を許可してください',
+          [
+            { text: 'キャンセル', style: 'cancel' },
+            { text: '設定を開く', onPress: () => Linking.openSettings() },
+          ],
+        );
+        return;
+      }
+    }
+    toggle('timerNotificationEnabled', value);
   }
 
   function handleImport() {
@@ -190,6 +210,14 @@ export default function SettingsScreen() {
       {/* ─── タイマー ─── */}
       <Text style={styles.sectionTitle}>タイマー</Text>
       <View style={styles.card}>
+        <View style={[styles.row, styles.rowBorder]}>
+          <FontAwesome name="bell" size={18} color="#555" style={styles.icon} />
+          <Text style={styles.rowLabel}>タイマー終了通知</Text>
+          <Switch
+            value={settings.timerNotificationEnabled}
+            onValueChange={handleNotificationToggle}
+          />
+        </View>
         <View style={[styles.row, styles.rowBorder]}>
           <FontAwesome name="volume-up" size={18} color="#555" style={styles.icon} />
           <Text style={styles.rowLabel}>サウンド</Text>

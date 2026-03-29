@@ -7,10 +7,10 @@ import { getExercises, getSessions, getSettings, DEFAULT_CATEGORY_ORDER } from '
 import HistoryGraphView from './HistoryGraphView';
 import type { Exercise, WorkoutSession } from '@/src/types';
 
-const BIG3 = 'Big3';
+const BIG3 = 'BIG3';
 const BIG3_EXERCISES = ['ベンチプレス', 'スクワット', 'デッドリフト'];
 
-/** 種目マスターからカテゴリ → 種目名[] のマップを構築（Big3を先頭に固定） */
+/** 種目マスターからカテゴリ → 種目名[] のマップを構築（BIG3を先頭に固定） */
 function buildCategoryExerciseMap(exercises: Exercise[], categoryOrder: string[]): Map<string, string[]> {
   const map = new Map<string, string[]>([[BIG3, BIG3_EXERCISES]]);
   for (const cat of categoryOrder) {
@@ -21,7 +21,7 @@ function buildCategoryExerciseMap(exercises: Exercise[], categoryOrder: string[]
     if (!map.has(cat)) map.set(cat, []);
     map.get(cat)!.push(ex.name);
   }
-  // 空のカテゴリを除去（Big3は常に残す）
+  // 空のカテゴリを除去（BIG3は常に残す）
   for (const [cat, names] of map.entries()) {
     if (cat !== BIG3 && names.length === 0) map.delete(cat);
   }

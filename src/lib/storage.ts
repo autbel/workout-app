@@ -21,6 +21,7 @@ export interface AppSettings {
   recentSessionCount: number; // Home に表示する直近セッション数（デフォルト3, 最大5）
   timerSoundEnabled: boolean;
   timerVibrationEnabled: boolean;
+  timerNotificationEnabled: boolean; // タイマー終了時のローカル通知
   categoryOrder: string[]; // AddExerciseScreen での種目カテゴリ表示順
   prExercises: string[];   // ホーム画面の自己記録セクションに表示する種目名（最大3）
 }
@@ -32,6 +33,7 @@ const DEFAULT_SETTINGS: AppSettings = {
   recentSessionCount: 3,
   timerSoundEnabled: false,
   timerVibrationEnabled: true,
+  timerNotificationEnabled: false,
   categoryOrder: DEFAULT_CATEGORY_ORDER,
   prExercises: ['ベンチプレス', 'スクワット', 'デッドリフト'],
 };

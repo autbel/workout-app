@@ -3,7 +3,7 @@ import { ScrollView, StyleSheet, Text, View } from 'react-native';
 export default function PrivacyPolicyScreen() {
   return (
     <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
-      <Text style={styles.updated}>最終更新日：2026年3月14日</Text>
+      <Text style={styles.updated}>最終更新日：2026年3月29日</Text>
 
       <Text style={styles.intro}>
         本プライバシーポリシー（以下「本ポリシー」）は、当アプリがお客様の情報をどのように取り扱うかを説明するものです。当アプリをご利用いただくことで、本ポリシーに同意したものとみなされます。
@@ -59,6 +59,17 @@ export default function PrivacyPolicyScreen() {
           ・アプリをアンインストールすることで、端末内のすべてのデータを削除する{'\n'}
           ・バックアップ機能を使用してデータをエクスポートする{'\n'}
           ・エクスポートしたファイルを外部で保管・管理する
+        </Text>
+      </View>
+
+      <View style={styles.section}>
+        <Text style={styles.heading}>■ 5-2. 権限について</Text>
+        <Text style={styles.body}>
+          本アプリは以下の権限を使用します：{'\n\n'}
+          ・通知（POST_NOTIFICATIONS）{'\n'}
+          　インターバルタイマーが終了したことをお知らせするためのローカル通知に使用します。プッシュ通知（リモート通知）は使用しません。通知はすべて端末内でのみ生成され、外部サーバーとの通信は行いません。設定画面からいつでもオフにできます。{'\n\n'}
+          ・オーディオ再生{'\n'}
+          　タイマー終了時のアラーム音を再生するために使用します。音声の録音は行いません。
         </Text>
       </View>
 

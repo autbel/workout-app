@@ -243,7 +243,9 @@ export default function WorkoutsScreen() {
     recentSessionCount: 3,
     timerSoundEnabled: true,
     timerVibrationEnabled: true,
+    timerNotificationEnabled: false,
     categoryOrder: ['胸', '脚', '背中', '肩', '腕', '腹筋'],
+    prExercises: ['ベンチプレス', 'スクワット', 'デッドリフト'],
   });
   const [pickerVisible, setPickerVisible] = useState(false);
   const startedAt = useRef(new Date().toISOString());

@@ -216,7 +216,7 @@ export default function HomeScreen() {
         </Pressable>
       </View>
 
-      {/* Big3 最大重量 */}
+      {/* BIG3 最大重量 */}
       <View style={styles.big3Section}>
         <Text style={styles.sectionTitle}>自己記録（最大重量）</Text>
         <View style={styles.big3Row}>

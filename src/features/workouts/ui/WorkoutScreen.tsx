@@ -14,7 +14,7 @@ import {
   View,
 } from 'react-native';
 import { useFocusEffect, useLocalSearchParams, useNavigation, useRouter } from 'expo-router';
-import * as Notifications from 'expo-notifications';
+import { Notifications, scheduleTimerNotification, cancelNotification } from '@/src/lib/notifications';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useKeepAwake } from 'expo-keep-awake';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
@@ -43,7 +43,7 @@ interface DraftExercise {
 }
 
 // フォアグラウンドでも通知を表示する
-Notifications.setNotificationHandler({
+Notifications?.setNotificationHandler({
   handleNotification: async () => ({
     shouldShowAlert: true,
     shouldShowBanner: true,
@@ -176,6 +176,7 @@ function ExerciseCard({
   unit,
   timerSoundEnabled,
   timerVibrationEnabled,
+  timerNotificationEnabled,
   onChange,
   onRemove,
   onNamePress,
@@ -184,6 +185,7 @@ function ExerciseCard({
   unit: 'kg' | 'lb';
   timerSoundEnabled: boolean;
   timerVibrationEnabled: boolean;
+  timerNotificationEnabled: boolean;
   onChange: (updated: DraftExercise) => void;
   onRemove: () => void;
   onNamePress: () => void;
@@ -211,7 +213,7 @@ function ExerciseCard({
         soundRef.current = null;
       }
       if (notificationIdRef.current) {
-        Notifications.cancelScheduledNotificationAsync(notificationIdRef.current).catch(() => {});
+        cancelNotification(notificationIdRef.current);
         notificationIdRef.current = null;
       }
     };
@@ -269,18 +271,10 @@ function ExerciseCard({
     const sec = parseInt(timerInput, 10);
     if (!sec || sec <= 0) return;
     setRemainingSec(sec);
-    // バックグラウンド/別画面用にローカル通知をスケジュール
-    Notifications.scheduleNotificationAsync({
-      content: {
-        title: 'タイマー終了',
-        body: `${exercise.exerciseName} のタイマーが終了しました`,
-        sound: true,
-      },
-      trigger: {
-        type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
-        seconds: sec,
-      },
-    }).then((id) => { notificationIdRef.current = id; }).catch(() => {});
+    // バックグラウンド/別画面用にローカル通知をスケジュール（設定ONのときのみ）
+    if (timerNotificationEnabled) {
+      scheduleTimerNotification(sec).then((id) => { notificationIdRef.current = id; });
+    }
     intervalRef.current = setInterval(() => {
       setRemainingSec((prev) => {
         if (prev === null || prev <= 1) {
@@ -289,7 +283,7 @@ function ExerciseCard({
           if (prev === 1) {
             // 画面上で自然終了: 通知をキャンセルして in-app 音/バイブを使う
             if (notificationIdRef.current) {
-              Notifications.cancelScheduledNotificationAsync(notificationIdRef.current).catch(() => {});
+              cancelNotification(notificationIdRef.current);
               notificationIdRef.current = null;
             }
             if (timerVibrationEnabled) Vibration.vibrate([0, 400, 200, 400]);
@@ -305,7 +299,7 @@ function ExerciseCard({
   const resetTimer = () => {
     if (intervalRef.current) { clearInterval(intervalRef.current); intervalRef.current = null; }
     if (notificationIdRef.current) {
-      Notifications.cancelScheduledNotificationAsync(notificationIdRef.current).catch(() => {});
+      cancelNotification(notificationIdRef.current);
       notificationIdRef.current = null;
     }
     stopSound();
@@ -567,6 +561,7 @@ export default function WorkoutScreen() {
     recentSessionCount: 3,
     timerSoundEnabled: true,
     timerVibrationEnabled: true,
+    timerNotificationEnabled: false,
     categoryOrder: ['胸', '脚', '背中', '肩', '腕', '腹筋'],
     prExercises: ['ベンチプレス', 'スクワット', 'デッドリフト'],
   });
@@ -586,10 +581,6 @@ export default function WorkoutScreen() {
     return () => { show.remove(); hide.remove(); };
   }, []);
 
-  // 通知パーミッションをリクエスト
-  useEffect(() => {
-    Notifications.requestPermissionsAsync().catch(() => {});
-  }, []);
 
   // ユーザーが実際に編集した時だけフラグを立てるヘルパー
   const markModified = useCallback(() => {
@@ -949,6 +940,7 @@ export default function WorkoutScreen() {
             unit={settings.unit}
             timerSoundEnabled={settings.timerSoundEnabled}
             timerVibrationEnabled={settings.timerVibrationEnabled}
+            timerNotificationEnabled={settings.timerNotificationEnabled ?? false}
             onChange={(updated) => updateExercise(idx, updated)}
             onRemove={() => removeExercise(idx)}
             onNamePress={() => {

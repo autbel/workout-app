@@ -9,6 +9,7 @@ import { Platform } from 'react-native';
 import { useColorScheme } from '@/components/useColorScheme';
 import { initSeedDataIfNeeded } from '@/src/lib/seed';
 import { deduplicateSessions } from '@/src/lib/storage';
+import { setupNotificationChannel } from '@/src/lib/notifications';
 
 export {
   ErrorBoundary,
@@ -34,6 +35,7 @@ export default function RootLayout() {
     if (loaded) {
       initSeedDataIfNeeded(); // 初回起動のみ種目・テンプレートを投入
       deduplicateSessions();  // 同日の重複セッションを削除
+      setupNotificationChannel(); // Android 通知チャンネル（アラーム優先度）をセットアップ
       SplashScreen.hideAsync();
     }
   }, [loaded]);

@@ -5,6 +5,7 @@
  */
 
 import Constants from 'expo-constants';
+import { Platform } from 'react-native';
 
 // Expo Go (storeClient) では通知APIが制限されているためスキップ
 const isExpoGo = Constants.executionEnvironment === 'storeClient';
@@ -32,6 +33,24 @@ export async function requestNotificationPermission(): Promise<boolean> {
   }
 }
 
+export async function setupNotificationChannel(): Promise<void> {
+  if (Platform.OS !== 'android' || !_Notifications) return;
+  try {
+    await _Notifications.setNotificationChannelAsync('timer-alarm', {
+      name: 'タイマーアラーム',
+      importance: _Notifications.AndroidImportance.HIGH,
+      sound: 'default',
+      vibrationPattern: [0, 400, 200, 400],
+      audioAttributes: {
+        usage: _Notifications.AndroidAudioUsage.ALARM,
+        contentType: _Notifications.AndroidAudioContentType.SONIFICATION,
+      },
+    });
+  } catch {
+    // ignore
+  }
+}
+
 export async function scheduleTimerNotification(seconds: number): Promise<string | null> {
   if (!_Notifications) return null;
   try {
@@ -40,6 +59,7 @@ export async function scheduleTimerNotification(seconds: number): Promise<string
         title: '筋トレ日記',
         body: 'タイマーが終了しました！',
         sound: true,
+        ...(Platform.OS === 'android' && { android: { channelId: 'timer-alarm' } }),
       },
       trigger: { type: _Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL, seconds, repeats: false },
     });

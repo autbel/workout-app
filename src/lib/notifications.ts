@@ -33,33 +33,55 @@ export async function requestNotificationPermission(): Promise<boolean> {
   }
 }
 
+// サウンド・バイブの組み合わせごとに4チャンネルを作成
+// どのチャンネルも IMPORTANCE_HIGH でポップアップ表示される
 export async function setupNotificationChannel(): Promise<void> {
   if (Platform.OS !== 'android' || !_Notifications) return;
-  try {
-    await _Notifications.setNotificationChannelAsync('timer-alarm', {
-      name: 'タイマーアラーム',
-      importance: _Notifications.AndroidImportance.HIGH,
-      sound: 'default',
-      vibrationPattern: [0, 400, 200, 400],
-      audioAttributes: {
-        usage: _Notifications.AndroidAudioUsage.ALARM,
-        contentType: _Notifications.AndroidAudioContentType.SONIFICATION,
-      },
-    });
-  } catch {
-    // ignore
+
+  const base = {
+    importance: _Notifications.AndroidImportance.HIGH,
+    audioAttributes: {
+      usage: _Notifications.AndroidAudioUsage.ALARM,
+      contentType: _Notifications.AndroidAudioContentType.SONIFICATION,
+    },
+  };
+
+  const channels: Parameters<typeof _Notifications.setNotificationChannelAsync>[] = [
+    ['timer-alarm-sv', { ...base, name: 'タイマーアラーム（音+バイブ）', sound: 'default', vibrationPattern: [0, 400, 200, 400] }],
+    ['timer-alarm-s',  { ...base, name: 'タイマーアラーム（音のみ）',    sound: 'default', vibrationPattern: null }],
+    ['timer-alarm-v',  { ...base, name: 'タイマーアラーム（バイブのみ）', sound: null,      vibrationPattern: [0, 400, 200, 400] }],
+    ['timer-alarm-n',  { ...base, name: 'タイマーアラーム（通知のみ）',  sound: null,      vibrationPattern: null }],
+  ];
+
+  for (const [id, options] of channels) {
+    try {
+      await _Notifications.setNotificationChannelAsync(id, options);
+    } catch {
+      // ignore
+    }
   }
 }
 
-export async function scheduleTimerNotification(seconds: number): Promise<string | null> {
+export async function scheduleTimerNotification(
+  seconds: number,
+  soundEnabled: boolean,
+  vibrationEnabled: boolean,
+): Promise<string | null> {
   if (!_Notifications) return null;
+
+  const channelId =
+    soundEnabled && vibrationEnabled ? 'timer-alarm-sv' :
+    soundEnabled                     ? 'timer-alarm-s'  :
+    vibrationEnabled                 ? 'timer-alarm-v'  :
+                                       'timer-alarm-n';
+
   try {
     return await _Notifications.scheduleNotificationAsync({
       content: {
         title: '筋トレ日記',
         body: 'タイマーが終了しました！',
-        sound: true,
-        ...(Platform.OS === 'android' && { android: { channelId: 'timer-alarm' } }),
+        sound: soundEnabled,
+        ...(Platform.OS === 'android' && { android: { channelId } }),
       },
       trigger: { type: _Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL, seconds, repeats: false },
     });

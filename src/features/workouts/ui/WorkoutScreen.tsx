@@ -273,7 +273,7 @@ function ExerciseCard({
     setRemainingSec(sec);
     // バックグラウンド/別画面用にローカル通知をスケジュール（設定ONのときのみ）
     if (timerNotificationEnabled) {
-      scheduleTimerNotification(sec).then((id) => { notificationIdRef.current = id; });
+      scheduleTimerNotification(sec, timerSoundEnabled, timerVibrationEnabled).then((id) => { notificationIdRef.current = id; });
     }
     intervalRef.current = setInterval(() => {
       setRemainingSec((prev) => {

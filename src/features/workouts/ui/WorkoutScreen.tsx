@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Alert,
   AppState,
+  type AppStateStatus,
   BackHandler,
   Keyboard,
   Platform,
@@ -200,6 +201,7 @@ function ExerciseCard({
   const soundRef = useRef<any>(null);
   const notificationIdRef = useRef<string | null>(null);
   const backgroundTimeRef = useRef<number | null>(null);
+  const appStateRef = useRef<AppStateStatus>('active');
   const isRunning = remainingSec !== null;
   const isFinished = remainingSec === 0;
   const timerError = timerTouched && (timerInput === '' || parseInt(timerInput, 10) <= 0);
@@ -222,6 +224,7 @@ function ExerciseCard({
   // バックグラウンド移行時に時刻を記録し、復帰時に経過時間を補正する
   useEffect(() => {
     const sub = AppState.addEventListener('change', (nextState) => {
+      appStateRef.current = nextState;
       if (nextState === 'background' || nextState === 'inactive') {
         backgroundTimeRef.current = Date.now();
       } else if (nextState === 'active' && backgroundTimeRef.current !== null) {
@@ -281,13 +284,16 @@ function ExerciseCard({
           clearInterval(intervalRef.current!);
           intervalRef.current = null;
           if (prev === 1) {
-            // 画面上で自然終了: 通知をキャンセルして in-app 音/バイブを使う
-            if (notificationIdRef.current) {
-              cancelNotification(notificationIdRef.current);
-              notificationIdRef.current = null;
+            if (appStateRef.current === 'active') {
+              // フォアグラウンド: 通知をキャンセルして in-app 音/バイブを使う
+              if (notificationIdRef.current) {
+                cancelNotification(notificationIdRef.current);
+                notificationIdRef.current = null;
+              }
+              if (timerVibrationEnabled) Vibration.vibrate([0, 400, 200, 400]);
+              if (timerSoundEnabled) playBeep();
             }
-            if (timerVibrationEnabled) Vibration.vibrate([0, 400, 200, 400]);
-            if (timerSoundEnabled) playBeep();
+            // バックグラウンド: 何もしない（スケジュール済み通知がシステムから発火する）
           }
           return 0;
         }
